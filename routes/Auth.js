@@ -18,26 +18,26 @@ router.post('/login', async (req, res) => {
 
     const trimmedId = employeeInput.trim();
 
-    // 1. Find user in database by employeeId or empId
+    // Explicitly include passwordHash and password fields in query selection
     const user = await User.findOne({
       $or: [
         { employeeId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
         { empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } }
       ]
-    });
+    }).select('+passwordHash +password');
 
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid Employee ID or Password!" });
     }
 
-    // 2. Read 'passwordHash' or 'password' field from document
-    const storedHash = user.passwordHash || user.password;
+    // Read stored hash from document (supports passwordHash, password, or direct object getter)
+    const storedHash = user.passwordHash || user.password || (user._doc && (user._doc.passwordHash || user._doc.password));
 
     if (!storedHash) {
       return res.status(500).json({ success: false, message: "Password hash not found in database" });
     }
 
-    // 3. Compare entered password with stored hash
+    // Compare entered password with stored hash
     const isMatch = await bcrypt.compare(password, storedHash);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Invalid Employee ID or Password!" });
