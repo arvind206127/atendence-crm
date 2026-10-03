@@ -15,35 +15,38 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// MongoDB Connection (Serverless-compatible connection cache)
+// MongoDB Connection (Serverless Caching Fix)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arvindkumar2224JK:Arvind2020@cluster0.ekvk4yc.mongodb.net/?appName=Cluster0';
 
-let cachedConnection = null;
+let isConnected = false;
+
 async function connectToDatabase() {
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
   }
+
   try {
     const opts = {
-      bufferCommands: false,
+      bufferCommands: true, // Vercel par connection ready hone tak query queue mein rahe gi
       serverSelectionTimeoutMS: 5000,
     };
-    cachedConnection = await mongoose.connect(MONGO_URI, opts);
+    const db = await mongoose.connect(MONGO_URI, opts);
+    isConnected = db.connections[0].readyState === 1;
     console.log('MongoDB Connected Successfully');
-    return cachedConnection;
   } catch (err) {
     console.error('MongoDB Connection Error:', err.message);
+    throw err;
   }
 }
 
-// Connect immediately and before handling API requests
-connectToDatabase();
-
+// Middleware: Ensure DB Connection Before Any Request Handles
 app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
+  try {
     await connectToDatabase();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database Connection Failed' });
   }
-  next();
 });
 
 // Routes Mounting
