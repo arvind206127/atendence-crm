@@ -6,10 +6,14 @@ const path = require('path');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 
-// Helper to ensure public/uploads directory exists
+// Helper to ensure public/uploads directory exists (safe for Vercel read-only FS)
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  // Ignored on read-only environments like Vercel
 }
 
 // 1. Submit Attendance API (POST)
@@ -50,14 +54,19 @@ router.post('/submit', async (req, res) => {
       }
     }
 
-    // Save base64 image as actual JPEG file in public/uploads/
+    // Save base64 image as actual JPEG file in public/uploads/ (if disk is writable)
     let imageRelativePath = '';
     if (selfie && selfie.startsWith('data:image')) {
-      const filename = `selfie-${user.empId}-${Date.now()}.jpg`;
-      const filePath = path.join(uploadsDir, filename);
-      const base64Data = selfie.replace(/^data:image\/\w+;base64,/, '');
-      fs.writeFileSync(filePath, base64Data, 'base64');
-      imageRelativePath = `/uploads/${filename}`;
+      try {
+        const filename = `selfie-${user.empId}-${Date.now()}.jpg`;
+        const filePath = path.join(uploadsDir, filename);
+        const base64Data = selfie.replace(/^data:image\/\w+;base64,/, '');
+        fs.writeFileSync(filePath, base64Data, 'base64');
+        imageRelativePath = `/uploads/${filename}`;
+      } catch (err) {
+        // Read-only filesystem fallback on Vercel: store in DB directly
+        imageRelativePath = '';
+      }
     }
 
     const record = new Attendance({
