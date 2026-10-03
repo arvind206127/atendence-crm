@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/Auth');
 const attendanceRoutes = require('./routes/attendance');
+const employeeRoutes = require('./routes/employees');
 
 const app = express();
 
@@ -23,6 +24,7 @@ mongoose.connect(MONGO_URI)
 // Routes Mounting
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/employees', employeeRoutes);
 
 // Static files / Frontend serve karne ke liye
 app.use(express.static(path.join(__dirname, 'public')));

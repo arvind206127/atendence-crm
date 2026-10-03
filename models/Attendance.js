@@ -22,8 +22,11 @@ const attendanceSchema = new mongoose.Schema({
     accuracy: { type: Number }
   },
   selfie: {
-    type: String, // Base64 Image String
-    required: true
+    type: String, // Base64 Image String or file path
+    required: false
+  },
+  imageUrl: {
+    type: String
   },
   createdAt: {
     type: Date,
