@@ -49,10 +49,15 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Routes Mounting
+// Routes Mounting (supports both direct /api/... and serverless /... paths)
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/attendance', attendanceRoutes);
+app.use('/attendance', attendanceRoutes);
+
 app.use('/api/employees', employeeRoutes);
+app.use('/employees', employeeRoutes);
 
 // Static files / Frontend serve karne ke liye
 app.use(express.static(path.join(__dirname, 'public')));

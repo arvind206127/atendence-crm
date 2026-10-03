@@ -734,7 +734,7 @@
         Toastify({
           text: "Please fill in all required fields!",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
         return;
       }
@@ -761,20 +761,20 @@
           Toastify({
             text: `Welcome, ${data.name}!`,
             duration: 3000,
-            backgroundColor: "#10b981"
+            style: { background: "#10b981" }
           }).showToast();
         } else {
           Toastify({
             text: data.message || "Authentication failed",
             duration: 3500,
-            backgroundColor: "#ef4444"
+            style: { background: "#ef4444" }
           }).showToast();
         }
       } catch (err) {
         Toastify({
           text: "Error connecting to server.",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
       }
     }
@@ -792,7 +792,7 @@
       Toastify({
         text: "Logged out successfully.",
         duration: 2500,
-        backgroundColor: "#2563eb"
+        style: { background: "#2563eb" }
       }).showToast();
     }
 
@@ -824,7 +824,7 @@
           duration: 2000,
           gravity: "top",
           position: "right",
-          backgroundColor: "#2563eb"
+          style: { background: "#2563eb" }
         }).showToast();
       } catch (e) {
         console.error("Camera error:", e);
@@ -832,7 +832,7 @@
         Toastify({
           text: "Camera permission denied or camera unavailable!",
           duration: 3500,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
       }
     }
@@ -849,7 +849,7 @@
         Toastify({
           text: "Please click 'Open Camera' first!",
           duration: 2500,
-          backgroundColor: "#f59e0b"
+          style: { background: "#f59e0b" }
         }).showToast();
         return;
       }
@@ -867,7 +867,7 @@
       Toastify({
         text: "Selfie captured successfully!",
         duration: 2000,
-        backgroundColor: "#10b981"
+        style: { background: "#10b981" }
       }).showToast();
     }
 
@@ -907,7 +907,7 @@
         Toastify({
           text: "Geolocation is not supported by your browser.",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
         return;
       }
@@ -929,7 +929,7 @@
         Toastify({
           text: "Location detected successfully!",
           duration: 2500,
-          backgroundColor: "#10b981"
+          style: { background: "#10b981" }
         }).showToast();
       }, (error) => {
         let msg = "Location permission denied or unavailable.";
@@ -941,7 +941,7 @@
         Toastify({
           text: msg,
           duration: 3500,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
       }, { enableHighAccuracy: true, timeout: 10000 });
     }
@@ -967,7 +967,7 @@
         Toastify({
           text: "You are not logged in! Please login first.",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
         showAuth();
         return;
@@ -978,7 +978,7 @@
         Toastify({
           text: "Please capture a selfie photo!",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
         return;
       }
@@ -988,7 +988,7 @@
         Toastify({
           text: "Please capture your GPS location!",
           duration: 3000,
-          backgroundColor: "#ef4444"
+          style: { background: "#ef4444" }
         }).showToast();
         return;
       }
@@ -1023,7 +1023,7 @@
             duration: 3500,
             gravity: "top",
             position: "right",
-            backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+            style: { background: "linear-gradient(to right, #00b09b, #96c93d)" },
           }).showToast();
 
           // Reset selfie preview
@@ -1038,7 +1038,7 @@
           Toastify({
             text: "Failed: " + (result.message || "Server Error"),
             duration: 3500,
-            backgroundColor: "#ef4444",
+            style: { background: "#ef4444" },
           }).showToast();
         }
       } catch (err) {
@@ -1046,7 +1046,7 @@
         Toastify({
           text: "Error connecting to server.",
           duration: 3000,
-          backgroundColor: "#ef4444",
+          style: { background: "#ef4444" },
         }).showToast();
       }
     }
