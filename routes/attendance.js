@@ -6,6 +6,19 @@ const path = require('path');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 
+// Helper to get protocol and host cleanly (supporting HTTPS behind Vercel/proxies)
+function getBaseUrl(req) {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  return `${proto}://${req.get('host')}`;
+}
+
+// Fallback user avatar SVG (served when an attendance image is missing or cannot be loaded)
+const FALLBACK_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="10" fill="#e2e8f0"/>
+  <circle cx="50" cy="40" r="20" fill="#94a3b8"/>
+  <path d="M20 85 C20 68 35 65 50 65 C65 65 80 68 80 85 Z" fill="#94a3b8"/>
+</svg>`;
+
 // Helper to ensure public/uploads directory exists (safe for Vercel read-only FS)
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
 try {
@@ -74,16 +87,13 @@ router.post('/submit', async (req, res) => {
       empName: user.name,
       status: status || 'Present',
       location,
-      selfie: imageRelativePath || selfie,
-      imageUrl: imageRelativePath
+      selfie: selfie, // Always preserve the actual image data in DB (works on Vercel)
+      imageUrl: imageRelativePath || ''
     });
 
     await record.save();
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const fullImageUrl = imageRelativePath 
-      ? `${baseUrl}${imageRelativePath}` 
-      : `${baseUrl}/api/attendance/image/${record._id}`;
+    const fullImageUrl = `/api/attendance/image/${record._id}`;
 
     res.status(201).json({
       success: true,
@@ -99,44 +109,62 @@ router.post('/submit', async (req, res) => {
 });
 
 // 2. Serve Image by Attendance ID (GET /api/attendance/image/:id)
-// Returns real binary JPEG image so you can open/view it directly via URL
+// Returns real binary JPEG image or clean fallback SVG avatar
 router.get('/image/:id', async (req, res) => {
   try {
     const record = await Attendance.findById(req.params.id);
-    if (!record || (!record.selfie && !record.imageUrl)) {
-      return res.status(404).send('Image not found');
+    if (!record) {
+      res.set('Content-Type', 'image/svg+xml');
+      return res.send(FALLBACK_AVATAR_SVG);
     }
 
-    const imgRef = record.imageUrl || record.selfie;
+    const imgRef = record.selfie || record.imageUrl;
+    if (!imgRef) {
+      res.set('Content-Type', 'image/svg+xml');
+      return res.send(FALLBACK_AVATAR_SVG);
+    }
 
-    // If it's a file saved on disk in public/uploads
-    if (imgRef.startsWith('/uploads/') || imgRef.startsWith('uploads/')) {
+    // If it's a file saved on disk in public/uploads and exists
+    if (typeof imgRef === 'string' && (imgRef.startsWith('/uploads/') || imgRef.startsWith('uploads/'))) {
       const filePath = path.join(__dirname, '..', 'public', imgRef.replace(/^\//, ''));
       if (fs.existsSync(filePath)) {
         return res.sendFile(filePath);
       }
+      // If missing from disk (e.g. serverless Vercel deploy), serve fallback SVG
+      res.set('Content-Type', 'image/svg+xml');
+      return res.send(FALLBACK_AVATAR_SVG);
     }
 
     // If it's an external URL
-    if (imgRef.startsWith('http://') || imgRef.startsWith('https://')) {
+    if (typeof imgRef === 'string' && (imgRef.startsWith('http://') || imgRef.startsWith('https://'))) {
       return res.redirect(imgRef);
     }
 
     // If it's Base64 string in database
-    const matches = imgRef.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (matches && matches.length === 3) {
-      const mimeType = matches[1];
-      const buffer = Buffer.from(matches[2], 'base64');
-      res.set('Content-Type', mimeType);
-      return res.send(buffer);
-    } else {
-      const buffer = Buffer.from(imgRef.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      res.set('Content-Type', 'image/jpeg');
-      return res.send(buffer);
+    if (typeof imgRef === 'string') {
+      const matches = imgRef.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        const mimeType = matches[1];
+        const buffer = Buffer.from(matches[2], 'base64');
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.send(buffer);
+      } else if (imgRef.length > 50 && !imgRef.startsWith('/')) {
+        const cleanBase64 = imgRef.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(cleanBase64, 'base64');
+        res.set('Content-Type', 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.send(buffer);
+      }
     }
+
+    // Fallback if format is not recognized
+    res.set('Content-Type', 'image/svg+xml');
+    return res.send(FALLBACK_AVATAR_SVG);
   } catch (err) {
     console.error('Error serving image:', err);
-    res.status(500).send('Error serving image');
+    res.set('Content-Type', 'image/svg+xml');
+    res.send(FALLBACK_AVATAR_SVG);
   }
 });
 
@@ -175,18 +203,15 @@ router.get(['/all', '/logs'], async (req, res) => {
       userMap[u.empId] = u;
     });
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-
     const detailedLogs = records.map(r => {
       const createdAt = new Date(r.createdAt || Date.now());
       const u = userMap[r.empId] || {};
       const lat = r.location?.lat;
       const lng = r.location?.lng;
 
-      // Clean image URL instead of giant base64 string
-      const imgUrl = (r.imageUrl && r.imageUrl.startsWith('/uploads/'))
-        ? `${baseUrl}${r.imageUrl}`
-        : `${baseUrl}/api/attendance/image/${r._id}`;
+      // Clean image URL: using relative path avoids mixed content (http vs https)
+      const hasImg = !!(r.selfie || r.imageUrl);
+      const imgUrl = hasImg ? `/api/attendance/image/${r._id}` : '';
 
       return {
         recordId: r._id,
@@ -227,17 +252,14 @@ router.get('/employees', async (req, res) => {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     const attendances = await Attendance.find().sort({ createdAt: -1 });
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-
     const attendanceMap = {};
     attendances.forEach((att) => {
       const id = (att.empId || '').trim();
       if (!attendanceMap[id]) attendanceMap[id] = [];
 
       const cleanAtt = att.toObject();
-      cleanAtt.imageUrl = (att.imageUrl && att.imageUrl.startsWith('/uploads/'))
-        ? `${baseUrl}${att.imageUrl}`
-        : `${baseUrl}/api/attendance/image/${att._id}`;
+      const hasImg = !!(att.selfie || att.imageUrl);
+      cleanAtt.imageUrl = hasImg ? `/api/attendance/image/${att._id}` : '';
       cleanAtt.selfie = cleanAtt.imageUrl;
 
       attendanceMap[id].push(cleanAtt);

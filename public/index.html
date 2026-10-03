@@ -1077,7 +1077,10 @@
             ? `<a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}">View Map</a>` 
             : '';
           const addressText = escapeHtml(x.location?.address || 'N/A');
-          const imgSrc = x.imageUrl || x.selfie || '';
+          let imgSrc = x.imageUrl || x.selfie || '';
+          if (imgSrc && typeof imgSrc === 'string' && imgSrc.startsWith('http://') && window.location.protocol === 'https:') {
+            imgSrc = imgSrc.replace(/^http:\/\//i, 'https://');
+          }
 
           return `<tr>
             <td><b>${escapeHtml(x.empName || 'Employee')}</b><br><small style="color:#64748b;">${escapeHtml(x.empId)}</small></td>
@@ -1088,7 +1091,7 @@
               ${mapLink}
             </td>
             <td>
-              ${imgSrc ? `<img src="${imgSrc}" style="width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">` : '-'}
+              ${imgSrc ? `<img src="${imgSrc}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2244%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2210%22 fill=%22%23e2e8f0%22/><circle cx=%2250%22 cy=%2240%22 r=%2220%22 fill=%22%2394a3b8%22/><path d=%22M20 85 C20 68 35 65 50 65 C65 65 80 68 80 85 Z%22 fill=%22%2394a3b8%22/></svg>';" style="width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">` : '-'}
             </td>
           </tr>`;
         }).join("");

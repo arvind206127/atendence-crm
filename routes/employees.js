@@ -25,10 +25,9 @@ router.get('/all', async (req, res) => {
         attendanceMap[id] = [];
       }
       const obj = att.toObject();
-      obj.imageUrl = (obj.imageUrl && obj.imageUrl.startsWith('/uploads/'))
-        ? `${baseUrl}${obj.imageUrl}`
-        : `${baseUrl}/api/attendance/image/${obj._id}`;
-      obj.selfie = obj.imageUrl; // Clean URL instead of base64
+      const hasImg = !!(obj.selfie || obj.imageUrl);
+      obj.imageUrl = hasImg ? `/api/attendance/image/${obj._id}` : '';
+      obj.selfie = obj.imageUrl;
       attendanceMap[id].push(obj);
     });
 
@@ -115,9 +114,8 @@ router.get('/:empId', async (req, res) => {
 
     const attendances = rawAttendances.map(att => {
       const obj = att.toObject();
-      obj.imageUrl = (obj.imageUrl && obj.imageUrl.startsWith('/uploads/'))
-        ? `${baseUrl}${obj.imageUrl}`
-        : `${baseUrl}/api/attendance/image/${obj._id}`;
+      const hasImg = !!(obj.selfie || obj.imageUrl);
+      obj.imageUrl = hasImg ? `/api/attendance/image/${obj._id}` : '';
       obj.selfie = obj.imageUrl;
       return obj;
     });

@@ -10,6 +10,9 @@ const employeeRoutes = require('./routes/employees');
 
 const app = express();
 
+// Trust reverse proxy (Vercel, Cloudflare, AWS) so req.protocol correctly identifies https
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
