@@ -5,6 +5,34 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'apna_secret_key_yahan_rakhein';
+const SSO_SHARED_SECRET = process.env.SSO_SHARED_SECRET || 'advmen_sso_shared_secret_2026_key_secure_99';
+const CRM_FRONTEND_URL = (process.env.CRM_FRONTEND_URL || 'https://advmen-crm-frontend.vercel.app').replace(/\/+$/, '');
+
+// Helper: Generate signed SSO token and CRM dashboard redirect URL
+function createSsoPayloadAndToken(user, fallbackId, fallbackName) {
+  const resolvedEmpId = (user && (user.empId || user.employeeId)) ? (user.empId || user.employeeId) : fallbackId;
+  const resolvedName = (user && user.name) ? user.name : (fallbackName || 'Employee');
+  const cleanIdStr = String(resolvedEmpId || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const resolvedEmail = (user && user.email) ? user.email : `${cleanIdStr || 'user'}@advmen.com`;
+  const resolvedId = user ? String(user._id) : `usr_${cleanIdStr || 'id'}`;
+
+  const payload = {
+    id: resolvedId,
+    name: resolvedName,
+    email: resolvedEmail,
+    role: 'SALES_REP',
+    organizationId: 'org_advmen_platform',
+    organizationName: 'ADVMEN Workspace',
+    employeeId: resolvedEmpId,
+    empId: resolvedEmpId,
+    permissions: []
+  };
+
+  const ssoToken = jwt.sign(payload, SSO_SHARED_SECRET, { expiresIn: '8h' });
+  const redirectUrl = `${CRM_FRONTEND_URL}/auth/sso?token=${encodeURIComponent(ssoToken)}&target=/`;
+
+  return { ssoToken, redirectUrl, user: payload, crmFrontendUrl: CRM_FRONTEND_URL };
+}
 
 // 1. Signup Route
 router.post('/signup', async (req, res) => {
@@ -30,8 +58,16 @@ router.post('/signup', async (req, res) => {
     await newUser.save();
 
     const token = jwt.sign({ id: newUser._id, empId: newUser.empId }, JWT_SECRET, { expiresIn: '1d' });
+    const ssoData = createSsoPayloadAndToken(newUser, newUser.empId, newUser.name);
 
-    res.status(201).json({ success: true, token, empId: newUser.empId, name: newUser.name });
+    res.status(201).json({
+      success: true,
+      token,
+      ssoToken: ssoData.ssoToken,
+      crmDashboardUrl: ssoData.redirectUrl,
+      empId: newUser.empId,
+      name: newUser.name
+    });
   } catch (err) {
     console.error("Signup Error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -112,10 +148,13 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id, empId: resolvedEmpId }, JWT_SECRET, { expiresIn: '1d' });
+    const ssoData = createSsoPayloadAndToken(user, resolvedEmpId, user.name);
 
     res.json({
       success: true,
       token,
+      ssoToken: ssoData.ssoToken,
+      crmDashboardUrl: ssoData.redirectUrl,
       empId: resolvedEmpId,
       name: user.name,
       email: user.email
@@ -199,6 +238,60 @@ router.all('/logout', async (req, res) => {
     });
   } catch (err) {
     console.error('Logout Error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 4. SSO Route (GET/POST /api/auth/crm-sso, /api/auth/sso-token, /api/auth/sso-redirect)
+// Generates secure SSO JWT using SSO_SHARED_SECRET and redirects or returns CRM dashboard URL
+router.all(['/crm-sso', '/sso-token', '/sso-redirect'], async (req, res) => {
+  try {
+    let empInput = req.body?.empId || req.body?.employeeId || req.query?.empId || req.query?.employeeId || req.body?.email || req.query?.email || req.body?.name || req.query?.name;
+
+    // Check Authorization header token if body/query is empty
+    if (!empInput && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded && (decoded.empId || decoded.id)) {
+          empInput = decoded.empId || decoded.id;
+        }
+      } catch (e) {}
+    }
+
+    let user = null;
+    if (empInput) {
+      const trimmed = String(empInput).trim();
+      user = await User.findOne({
+        $or: [
+          { empId: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
+          { employeeId: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
+          { name: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
+          { email: { $regex: new RegExp(`^${trimmed}$`, 'i') } }
+        ]
+      });
+    }
+
+    const target = req.query?.target || req.body?.target || '/';
+    const ssoData = createSsoPayloadAndToken(user, empInput || 'EMP-USER', user ? user.name : 'Employee');
+    const redirectUrl = `${CRM_FRONTEND_URL}/auth/sso?token=${encodeURIComponent(ssoData.ssoToken)}&target=${encodeURIComponent(target)}`;
+
+    // If browser GET navigation without JSON expectation, redirect directly
+    const wantsJson = req.xhr || req.query?.format === 'json' || (req.headers.accept && req.headers.accept.includes('application/json'));
+    if (!wantsJson && req.method === 'GET') {
+      return res.redirect(redirectUrl);
+    }
+
+    res.json({
+      success: true,
+      token: ssoData.ssoToken,
+      ssoToken: ssoData.ssoToken,
+      redirectUrl,
+      crmFrontendUrl: CRM_FRONTEND_URL,
+      user: ssoData.user
+    });
+  } catch (err) {
+    console.error('SSO Token Error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

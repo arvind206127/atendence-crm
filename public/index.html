@@ -136,6 +136,62 @@
       background: rgba(255, 255, 255, 0.25);
     }
 
+    .crm-header-btn {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      width: auto !important;
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+      white-space: nowrap;
+    }
+
+    .crm-header-btn:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.55);
+    }
+
+    .crm-card-btn {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      border: 1px solid #1d4ed8;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: auto !important;
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+      white-space: nowrap;
+    }
+
+    .crm-card-btn:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-1px);
+    }
+
+    .employee-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
     .container {
       width: 100%;
       max-width: 1180px;
@@ -492,6 +548,20 @@
       header {
         padding: 10px 14px;
       }
+      .header-right {
+        gap: 6px;
+      }
+      .crm-header-btn {
+        padding: 5px 10px;
+        font-size: 11px;
+      }
+      .crm-card-btn {
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+      .user-greeting {
+        display: none;
+      }
       .header-brand h1 {
         font-size: 16px;
       }
@@ -582,6 +652,7 @@
       </div>
       <div class="header-right">
         <span id="userGreeting" class="user-greeting"></span>
+        <button id="crmDashboardHeaderBtn" type="button" class="crm-header-btn" onclick="goToCrmDashboard()">🚀 Go to CRM Dashboard</button>
         <button id="authBtnHeader" class="header-badge" onclick="logout()">Logout</button>
       </div>
     </header>
@@ -609,7 +680,10 @@
                 <span id="displayEmpId">-</span>
               </div>
             </div>
-            <button type="button" class="switch-btn" onclick="logout()">Logout</button>
+            <div class="employee-card-actions">
+              <button type="button" class="crm-card-btn" onclick="goToCrmDashboard()">🚀 Go to Dashboard</button>
+              <button type="button" class="switch-btn" onclick="logout()">Logout</button>
+            </div>
           </div>
 
           <label>Selfie Photo *</label>
@@ -763,6 +837,12 @@
 
           localStorage.setItem('empId', finalId);
           localStorage.setItem('empName', data.name || 'Employee');
+          if (data.ssoToken) {
+            localStorage.setItem('ssoToken', data.ssoToken);
+          }
+          if (data.crmDashboardUrl) {
+            localStorage.setItem('crmDashboardUrl', data.crmDashboardUrl);
+          }
           
           showDashboard(finalId, data.name || 'Employee');
 
@@ -815,6 +895,8 @@
       }
       localStorage.removeItem('empId');
       localStorage.removeItem('empName');
+      localStorage.removeItem('ssoToken');
+      localStorage.removeItem('crmDashboardUrl');
       document.getElementById('authPassword').value = '';
       showAuth();
       Toastify({
@@ -822,6 +904,48 @@
         duration: 3000,
         style: { background: "#2563eb" }
       }).showToast();
+    }
+
+    // Go to CRM Dashboard with secure SSO token
+    async function goToCrmDashboard() {
+      const empId = localStorage.getItem('empId') || '';
+      const empName = localStorage.getItem('empName') || '';
+      const cachedUrl = localStorage.getItem('crmDashboardUrl');
+
+      Toastify({
+        text: "Opening CRM Dashboard...",
+        duration: 2000,
+        style: { background: "#2563eb" }
+      }).showToast();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/crm-sso?empId=${encodeURIComponent(empId)}&name=${encodeURIComponent(empName)}&format=json`);
+        const data = await res.json();
+
+        if (data.success && data.redirectUrl) {
+          localStorage.setItem('ssoToken', data.ssoToken);
+          localStorage.setItem('crmDashboardUrl', data.redirectUrl);
+
+          const win = window.open(data.redirectUrl, '_blank');
+          if (!win || win.closed || typeof win.closed === 'undefined') {
+            window.location.href = data.redirectUrl;
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn("SSO route error, falling back to cached URL:", err);
+      }
+
+      // Fallback if network issue or offline
+      if (cachedUrl) {
+        const win = window.open(cachedUrl, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          window.location.href = cachedUrl;
+        }
+      } else {
+        const fallback = 'https://advmen-crm-frontend.vercel.app';
+        window.open(fallback, '_blank');
+      }
     }
 
     function escapeHtml(s) { 
