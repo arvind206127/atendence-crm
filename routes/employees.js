@@ -11,8 +11,14 @@ router.get('/all', async (req, res) => {
   try {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    // Sabhi registered users (password chhodkar)
+    // Registered users
     const users = await User.find().select('-password').sort({ createdAt: -1 });
+    const userByName = {};
+    const userByEmpId = {};
+    users.forEach(u => {
+      if (u.name) userByName[u.name.toLowerCase().trim()] = u;
+      if (u.empId && u.empId !== 'undefined') userByEmpId[u.empId.toLowerCase().trim()] = u;
+    });
 
     // Sabhi attendance records
     const attendances = await Attendance.find().sort({ createdAt: -1 });
@@ -20,7 +26,12 @@ router.get('/all', async (req, res) => {
     // Attendances ko empId ke hisaab se group karna aur image URLs clean banana
     const attendanceMap = {};
     attendances.forEach((att) => {
-      const id = (att.empId || '').trim();
+      let id = (att.empId || '').trim();
+      if (!id || id === 'undefined' || id === 'null') {
+        const u = userByName[(att.empName || '').toLowerCase().trim()];
+        id = (u && u.empId && u.empId !== 'undefined') ? u.empId : (att.empName ? `EMP-${att.empName.toUpperCase()}` : 'EMP101');
+      }
+
       if (!attendanceMap[id]) {
         attendanceMap[id] = [];
       }
@@ -28,6 +39,16 @@ router.get('/all', async (req, res) => {
       const hasImg = !!(obj.selfie || obj.imageUrl);
       obj.imageUrl = hasImg ? `/api/attendance/image/${obj._id}` : '';
       obj.selfie = obj.imageUrl;
+      obj.empId = id;
+
+      const inDate = obj.punchIn ? new Date(obj.punchIn) : new Date(obj.createdAt || Date.now());
+      const outDate = obj.punchOut ? new Date(obj.punchOut) : null;
+      obj.loginTime = obj.loginTime || inDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+      obj.logoutTime = obj.logoutTime || (outDate ? outDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }) : null);
+      obj.punchTime = obj.loginTime;
+      obj.punchInTime = obj.loginTime;
+      obj.punchOutTime = obj.logoutTime;
+
       attendanceMap[id].push(obj);
     });
 

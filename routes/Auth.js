@@ -77,10 +77,49 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid Employee ID or Password!" });
     }
 
-    const userEmpId = user.empId || user.employeeId;
-    const token = jwt.sign({ id: user._id, empId: userEmpId }, JWT_SECRET, { expiresIn: '1d' });
+    // Determine clean employee ID (never return 'undefined')
+    let resolvedEmpId = user.empId || user.employeeId;
+    if (!resolvedEmpId || resolvedEmpId === 'undefined' || resolvedEmpId === 'null') {
+      // If user typed an ID at login that is not an email, use that entered ID
+      if (trimmedId && !trimmedId.includes('@')) {
+        resolvedEmpId = trimmedId;
+      } else if (user.name) {
+        resolvedEmpId = `EMP-${user.name.replace(/\s+/g, '').toUpperCase()}`;
+      } else {
+        resolvedEmpId = `EMP${String(user._id).slice(-4).toUpperCase()}`;
+      }
 
-    res.json({ success: true, token, empId: userEmpId, name: user.name });
+      // Persist corrected empId to User document
+      try {
+        await User.updateOne({ _id: user._id }, { $set: { empId: resolvedEmpId } });
+      } catch (e) {
+        console.warn('Failed to persist empId on user:', e.message);
+      }
+    }
+
+    // Auto-repair past attendance records that had empId as 'undefined'
+    const Attendance = require('../models/Attendance');
+    try {
+      await Attendance.updateMany(
+        {
+          $or: [{ empId: 'undefined' }, { empId: null }, { empId: '' }],
+          empName: user.name
+        },
+        { $set: { empId: resolvedEmpId } }
+      );
+    } catch (e) {
+      // Ignore background repair error
+    }
+
+    const token = jwt.sign({ id: user._id, empId: resolvedEmpId }, JWT_SECRET, { expiresIn: '1d' });
+
+    res.json({
+      success: true,
+      token,
+      empId: resolvedEmpId,
+      name: user.name,
+      email: user.email
+    });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ success: false, message: err.message });

@@ -28,6 +28,27 @@ const attendanceSchema = new mongoose.Schema({
   imageUrl: {
     type: String
   },
+  punchIn: {
+    type: Date,
+    default: Date.now
+  },
+  punchOut: {
+    type: Date,
+    default: null
+  },
+  loginTime: {
+    type: String
+  },
+  logoutTime: {
+    type: String,
+    default: null
+  },
+  logoutLocation: {
+    address: { type: String },
+    lat: { type: Number },
+    lng: { type: Number },
+    accuracy: { type: Number }
+  },
   createdAt: {
     type: Date,
     default: Date.now

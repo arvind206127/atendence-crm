@@ -635,12 +635,15 @@
           <button type="button" class="secondary" onclick="getLocation()" style="margin-top:0;">📍 Get Current Location</button>
           <div id="locationStatus" class="status">Click "Get Current Location" to detect GPS and address.</div>
 
-          <div class="actions" style="margin-top:16px;">
-            <button type="button" class="primary" onclick="submitAttendance()" style="padding: 13px 18px; font-size:14px; background:#16a34a;">
-              ✓ Submit Attendance
+          <div class="actions" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="primary" onclick="submitAttendance()" style="padding: 13px 18px; font-size:14px; background:#16a34a; flex:1; min-width:160px;">
+              ✓ Punch In (Submit)
+            </button>
+            <button type="button" class="danger-btn" onclick="punchOutAttendance()" style="padding: 13px 18px; font-size:14px; background:#dc2626; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; flex:1; min-width:160px; box-shadow:0 2px 4px rgba(220,38,38,0.2);">
+              🚪 Punch Out (Logout Time)
             </button>
           </div>
-          <div id="message" class="status">Capture a selfie and detect location to submit your attendance.</div>
+          <div id="message" class="status">Capture a selfie and detect location to punch in, or click Punch Out when leaving.</div>
         </section>
 
         <!-- ATTENDANCE RECORDS PANEL -->
@@ -659,14 +662,16 @@
               <thead>
                 <tr>
                   <th>Employee</th>
-                  <th>Date & Time</th>
+                  <th>Date</th>
+                  <th>Login Time (In)</th>
+                  <th>Logout Time (Out)</th>
                   <th>Status</th>
                   <th>Location & Address</th>
                   <th>Selfie</th>
                 </tr>
               </thead>
               <tbody id="records">
-                <tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;">Loading records...</td></tr>
+                <tr><td colspan="7" style="text-align:center; padding: 20px; color:#64748b;">Loading records...</td></tr>
               </tbody>
             </table>
           </div>
@@ -687,12 +692,13 @@
 
     // Check login state on load
     window.addEventListener('DOMContentLoaded', () => {
-      const savedEmpId = localStorage.getItem('empId');
+      let savedEmpId = localStorage.getItem('empId');
       const savedName = localStorage.getItem('empName');
 
-      if (savedEmpId && savedName) {
+      if (savedEmpId && savedEmpId !== 'undefined' && savedEmpId !== 'null' && savedName) {
         showDashboard(savedEmpId, savedName);
       } else {
+        localStorage.removeItem('empId');
         showAuth();
       }
     });
@@ -706,9 +712,10 @@
       document.getElementById('authContainer').style.display = 'none';
       document.getElementById('mainDashboard').style.display = 'block';
 
-      document.getElementById('displayEmpName').textContent = empName;
-      document.getElementById('displayEmpId').textContent = `ID: ${empId}`;
-      document.getElementById('userGreeting').textContent = `👤 ${empName}`;
+      const cleanId = (empId && empId !== 'undefined' && empId !== 'null') ? empId : '-';
+      document.getElementById('displayEmpName').textContent = empName || 'Employee';
+      document.getElementById('displayEmpId').textContent = `ID: ${cleanId}`;
+      document.getElementById('userGreeting').textContent = `👤 ${empName || 'Employee'}`;
 
       render();
     }
@@ -742,7 +749,7 @@
       const endpoint = isSignupMode ? '/api/auth/signup' : '/api/auth/login';
       const payload = isSignupMode 
         ? { name, email: idOrEmail, password } 
-        : { empId: idOrEmail, password };
+        : { empId: idOrEmail, employeeId: idOrEmail, password };
 
       try {
         const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -753,13 +760,17 @@
         const data = await res.json();
 
         if (data.success) {
-          localStorage.setItem('empId', data.empId);
-          localStorage.setItem('empName', data.name);
+          const finalId = (data.empId && data.empId !== 'undefined' && data.empId !== 'null') 
+            ? data.empId 
+            : idOrEmail;
+
+          localStorage.setItem('empId', finalId);
+          localStorage.setItem('empName', data.name || 'Employee');
           
-          showDashboard(data.empId, data.name);
+          showDashboard(finalId, data.name || 'Employee');
 
           Toastify({
-            text: `Welcome, ${data.name}!`,
+            text: `Welcome, ${data.name}! Employee ID: ${finalId}`,
             duration: 3000,
             style: { background: "#10b981" }
           }).showToast();
@@ -959,17 +970,17 @@
     }
 
     async function submitAttendance() {
-      const empId = localStorage.getItem('empId');
+      let empId = localStorage.getItem('empId');
       const empName = localStorage.getItem('empName') || 'Employee';
       const message = document.getElementById('message');
 
-      if (!empId) {
+      if (!empId || empId === 'undefined' || empId === 'null') {
         Toastify({
-          text: "You are not logged in! Please login first.",
+          text: "Session expired or invalid employee ID. Please log in.",
           duration: 3000,
           style: { background: "#ef4444" }
         }).showToast();
-        showAuth();
+        logout();
         return;
       }
 
@@ -993,7 +1004,7 @@
         return;
       }
 
-      message.textContent = "Submitting attendance...";
+      message.textContent = "Submitting punch in attendance...";
 
       try {
         const response = await fetch(`${API_BASE}/api/attendance/submit`, {
@@ -1017,13 +1028,13 @@
 
         if (response.ok && result.success) {
           const empDisplayName = result.empName || empName;
-          if (result.empId) localStorage.setItem('empId', result.empId);
+          if (result.empId && result.empId !== 'undefined') localStorage.setItem('empId', result.empId);
           if (result.empName) localStorage.setItem('empName', result.empName);
 
-          message.textContent = `✓ Attendance recorded successfully for ${empDisplayName}!`;
+          message.textContent = `✓ Punch In recorded successfully at ${result.loginTime || result.punchTime}!`;
           
           Toastify({
-            text: `✅ Attendance marked for ${empDisplayName}!`,
+            text: `✅ Punch In marked for ${empDisplayName} (${result.loginTime || result.punchTime})!`,
             duration: 3500,
             gravity: "top",
             position: "right",
@@ -1049,6 +1060,62 @@
         message.textContent = "Error connecting to server.";
         Toastify({
           text: "Error connecting to server.",
+          duration: 3000,
+          style: { background: "#ef4444" },
+        }).showToast();
+      }
+    }
+
+    async function punchOutAttendance() {
+      let empId = localStorage.getItem('empId');
+      const empName = localStorage.getItem('empName') || 'Employee';
+      const message = document.getElementById('message');
+
+      if (!empId || empId === 'undefined' || empId === 'null') {
+        Toastify({
+          text: "Please login first to punch out.",
+          duration: 3000,
+          style: { background: "#ef4444" }
+        }).showToast();
+        logout();
+        return;
+      }
+
+      message.textContent = "Recording punch out...";
+
+      try {
+        const response = await fetch(`${API_BASE}/api/attendance/punch-out`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empId,
+            empName,
+            location: gps || { address: 'Office / On Duty', lat: 0, lng: 0 }
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          message.textContent = `✓ Punch out recorded at ${result.logoutTime}!`;
+          Toastify({
+            text: `🚪 Punch Out Recorded: ${result.logoutTime}`,
+            duration: 4000,
+            style: { background: "linear-gradient(to right, #ea580c, #dc2626)" }
+          }).showToast();
+          render();
+        } else {
+          message.textContent = "Punch out: " + (result.message || "Server error");
+          Toastify({
+            text: result.message || "Failed to record punch out.",
+            duration: 3500,
+            style: { background: "#ef4444" }
+          }).showToast();
+        }
+      } catch (err) {
+        message.textContent = "Error connecting to server.";
+        Toastify({
+          text: "Network error during punch out.",
           duration: 3000,
           style: { background: "#ef4444" },
         }).showToast();
@@ -1086,12 +1153,21 @@
             imgSrc = imgSrc.replace(/^http:\/\//i, 'https://');
           }
 
+          const loginStr = x.loginTime || x.punchTime || d.toLocaleTimeString();
+          const logoutStr = x.logoutTime 
+            ? `<span style="color:#059669; font-weight:700;">${escapeHtml(x.logoutTime)}</span>` 
+            : `<span style="color:#94a3b8; font-style:italic;">-- (Active)</span>`;
+
+          const displayId = (x.empId && x.empId !== 'undefined' && x.empId !== 'null') ? x.empId : '-';
+
           return `<tr>
-            <td><b>${escapeHtml(x.empName || 'Employee')}</b><br><small style="color:#64748b;">${escapeHtml(x.empId)}</small></td>
-            <td>${d.toLocaleDateString()}<br><small style="color:#64748b;">${d.toLocaleTimeString()}</small></td>
+            <td><b>${escapeHtml(x.empName || 'Employee')}</b><br><small style="color:#64748b;">${escapeHtml(displayId)}</small></td>
+            <td>${d.toLocaleDateString()}</td>
+            <td><b style="color:#2563eb;">${escapeHtml(loginStr)}</b></td>
+            <td>${logoutStr}</td>
             <td><span class="badge">${escapeHtml(x.status || 'Present')}</span></td>
             <td>
-              <small style="display:block; max-width: 220px; font-size: 11px; margin-bottom: 2px;">${addressText}</small>
+              <small style="display:block; max-width: 200px; font-size: 11px; margin-bottom: 2px;">${addressText}</small>
               ${mapLink}
             </td>
             <td>
@@ -1100,7 +1176,7 @@
           </tr>`;
         }).join("");
       } else {
-        recordsEl.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;">No attendance records found.</td></tr>';
+        recordsEl.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color:#64748b;">No attendance records found.</td></tr>';
       }
 
       const todayRows = all.filter(x => new Date(x.createdAt || Date.now()).toDateString() === today);
