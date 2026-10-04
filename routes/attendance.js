@@ -27,6 +27,8 @@ try {
   }
 } catch (e) {
   // Ignored on read-only environments like Vercel
+}
+
 // Helpers for Indian Standard Time (Asia/Kolkata, UTC+5:30)
 function formatCleanISTTime(dateOrStr) {
   if (!dateOrStr) return null;
