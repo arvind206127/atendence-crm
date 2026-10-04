@@ -790,7 +790,27 @@
       }
     }
 
-    function logout() {
+    async function logout() {
+      const empId = localStorage.getItem('empId');
+      const empName = localStorage.getItem('empName');
+
+      // Automatically sync logout time to attendance record on server
+      if (empId && empId !== 'undefined' && empId !== 'null') {
+        try {
+          await fetch(`${API_BASE}/api/attendance/punch-out`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empId,
+              empName,
+              location: gps || { address: 'Logged out from portal', lat: 0, lng: 0 }
+            })
+          });
+        } catch (e) {
+          console.warn("Auto logout sync error:", e);
+        }
+      }
+
       // Stop camera if running
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -801,8 +821,8 @@
       document.getElementById('authPassword').value = '';
       showAuth();
       Toastify({
-        text: "Logged out successfully.",
-        duration: 2500,
+        text: "Logged out successfully & Logout time recorded!",
+        duration: 3000,
         style: { background: "#2563eb" }
       }).showToast();
     }

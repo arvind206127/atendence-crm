@@ -126,4 +126,81 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// 3. Logout Route (POST/GET /api/auth/logout) - Automatically marks logoutTime on attendance
+router.all('/logout', async (req, res) => {
+  try {
+    let empInput = req.body?.empId || req.body?.employeeId || req.query?.empId || req.query?.employeeId || req.body?.email || req.query?.email || req.body?.name || req.query?.name;
+
+    // Check Authorization header token if body/query is empty
+    if (!empInput && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.empId) empInput = decoded.empId;
+      } catch (e) {}
+    }
+
+    const Attendance = require('../models/Attendance');
+    const now = new Date();
+    const logoutTimeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+
+    let updatedRecord = null;
+
+    if (empInput) {
+      const trimmed = String(empInput).trim();
+      const user = await User.findOne({
+        $or: [
+          { empId: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
+          { name: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
+          { email: { $regex: new RegExp(`^${trimmed}$`, 'i') } }
+        ]
+      });
+
+      const searchId = (user && user.empId) ? user.empId : trimmed;
+      const searchName = user ? user.name : trimmed;
+
+      const conditions = [];
+      if (searchId) conditions.push({ empId: { $regex: new RegExp(`^${searchId}$`, 'i') } });
+      if (searchName) conditions.push({ empName: { $regex: new RegExp(`^${searchName}$`, 'i') } });
+
+      // Find latest open record (where punchOut is null)
+      updatedRecord = await Attendance.findOne({
+        $or: conditions,
+        punchOut: null
+      }).sort({ createdAt: -1 });
+
+      // Fallback: latest record of this employee
+      if (!updatedRecord) {
+        updatedRecord = await Attendance.findOne({
+          $or: conditions
+        }).sort({ createdAt: -1 });
+      }
+
+      if (updatedRecord) {
+        updatedRecord.punchOut = now;
+        updatedRecord.logoutTime = logoutTimeStr;
+        await updatedRecord.save();
+      }
+    } else {
+      // If no ID passed, try updating the most recent attendance record where punchOut is null
+      updatedRecord = await Attendance.findOne({ punchOut: null }).sort({ createdAt: -1 });
+      if (updatedRecord) {
+        updatedRecord.punchOut = now;
+        updatedRecord.logoutTime = logoutTimeStr;
+        await updatedRecord.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully and logout time recorded.',
+      logoutTime: logoutTimeStr,
+      data: updatedRecord
+    });
+  } catch (err) {
+    console.error('Logout Error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

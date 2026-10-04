@@ -177,19 +177,25 @@ router.post('/submit', async (req, res) => {
 });
 
 // 2. Punch Out / Logout Attendance API (POST)
-router.post(['/punch-out', '/logout'], async (req, res) => {
+// 2. Punch Out / Logout Attendance API (POST & GET)
+router.all(['/punch-out', '/logout'], async (req, res) => {
   try {
-    const { empId, empName, location } = req.body;
+    const empInput = req.body?.empId || req.query?.empId || req.body?.employeeId || req.query?.employeeId || req.body?.email || req.query?.email || req.body?.empName || req.query?.empName || req.body?.name || req.query?.name;
+    const cleanEmpName = req.body?.empName || req.query?.empName || req.body?.name || req.query?.name || '';
+    const location = req.body?.location || null;
 
-    let trimmedId = (empId && String(empId).trim() !== 'undefined' && String(empId).trim() !== 'null') 
-      ? String(empId).trim() 
-      : '';
-    const cleanEmpName = (empName && String(empName).trim() !== 'undefined' && String(empName).trim() !== 'null')
-      ? String(empName).trim()
+    let trimmedId = (empInput && String(empInput).trim() !== 'undefined' && String(empInput).trim() !== 'null') 
+      ? String(empInput).trim() 
       : '';
 
-    if (!trimmedId && !cleanEmpName) {
-      return res.status(400).json({ success: false, message: 'Employee ID or name is required to record punch out.' });
+    // Check token if still no ID
+    if (!trimmedId && req.headers.authorization) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.empId) trimmedId = decoded.empId;
+      } catch (e) {}
     }
 
     // Look up user to resolve ID and Name
@@ -210,9 +216,6 @@ router.post(['/punch-out', '/logout'], async (req, res) => {
     const searchEmpId = (user && user.empId && user.empId !== 'undefined') ? user.empId : trimmedId;
     const searchName = user ? user.name : cleanEmpName;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     const orConditions = [];
     if (searchEmpId) {
       orConditions.push({ empId: { $regex: new RegExp(`^${searchEmpId}$`, 'i') } });
@@ -220,39 +223,35 @@ router.post(['/punch-out', '/logout'], async (req, res) => {
     if (searchName) {
       orConditions.push({ empName: { $regex: new RegExp(`^${searchName}$`, 'i') } });
     }
+    if (trimmedId && trimmedId !== searchEmpId && trimmedId !== searchName) {
+      orConditions.push({ empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } });
+      orConditions.push({ empName: { $regex: new RegExp(`^${trimmedId}$`, 'i') } });
+    }
 
-    // 1. Find record from today without punchOut
+    // 1. Find latest open record (punchOut is null)
     let record = null;
     if (orConditions.length > 0) {
       record = await Attendance.findOne({
         $or: orConditions,
-        createdAt: { $gte: todayStart },
         punchOut: null
       }).sort({ createdAt: -1 });
 
-      // 2. If not found, find latest from today
+      // 2. If all already punched out or no record with punchOut null, get latest record ever
       if (!record) {
         record = await Attendance.findOne({
-          $or: orConditions,
-          createdAt: { $gte: todayStart }
+          $or: orConditions
         }).sort({ createdAt: -1 });
       }
-
-      // 3. Fallback to latest within last 24 hours
-      if (!record) {
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        record = await Attendance.findOne({
-          $or: orConditions,
-          createdAt: { $gte: yesterday }
-        }).sort({ createdAt: -1 });
-      }
+    } else {
+      // If no ID passed at all, punch out the latest active record
+      record = await Attendance.findOne({ punchOut: null }).sort({ createdAt: -1 });
     }
 
     const now = new Date();
     const logoutTimeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
 
     if (!record) {
-      // If no check-in record exists, create one with punchOut recorded
+      // If no attendance record exists at all, create one
       const finalId = searchEmpId || (searchName ? `EMP-${searchName.toUpperCase()}` : 'EMP101');
       const finalName = searchName || 'Employee';
       record = new Attendance({
