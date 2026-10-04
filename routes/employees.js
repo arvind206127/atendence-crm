@@ -3,6 +3,26 @@ const router = express.Router();
 const User = require('../models/User');
 const Attendance = require('../models/Attendance');
 
+function formatCleanISTTime(dateOrStr) {
+  if (!dateOrStr) return null;
+  try {
+    if (typeof dateOrStr === 'string' && /^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(dateOrStr.trim())) {
+      return dateOrStr.trim();
+    }
+    const d = new Date(dateOrStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    }
+  } catch (e) {}
+  return String(dateOrStr);
+}
+
 /**
  * 1. GET /api/employees/all
  * Sabhi employees ka complete data (User Profile + Attendance History + Total Attendance Count)
@@ -41,10 +61,8 @@ router.get('/all', async (req, res) => {
       obj.selfie = obj.imageUrl;
       obj.empId = id;
 
-      const inDate = obj.punchIn ? new Date(obj.punchIn) : new Date(obj.createdAt || Date.now());
-      const outDate = obj.punchOut ? new Date(obj.punchOut) : null;
-      obj.loginTime = obj.loginTime || inDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-      obj.logoutTime = obj.logoutTime || (outDate ? outDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }) : null);
+      obj.loginTime = formatCleanISTTime(obj.punchIn || obj.loginTime || obj.createdAt);
+      obj.logoutTime = (obj.punchOut || obj.logoutTime) ? formatCleanISTTime(obj.punchOut || obj.logoutTime) : null;
       obj.punchTime = obj.loginTime;
       obj.punchInTime = obj.loginTime;
       obj.punchOutTime = obj.logoutTime;

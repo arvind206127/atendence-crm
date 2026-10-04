@@ -1142,6 +1142,28 @@
       }
     }
 
+    function formatDisplayTime(val, fallbackDate) {
+      if (!val && !fallbackDate) return null;
+      const str = String(val || '').trim();
+      // If already a clean short time string like "01:34:00 PM"
+      if (/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(str)) {
+        return str;
+      }
+      try {
+        const d = new Date(val || fallbackDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+        }
+      } catch (e) {}
+      return str || null;
+    }
+
     async function render() {
       const recordsEl = document.getElementById("records");
       const searchEl = document.getElementById("search");
@@ -1162,7 +1184,7 @@
 
       if (filtered.length > 0) {
         recordsEl.innerHTML = filtered.map(x => {
-          const d = new Date(x.createdAt || Date.now());
+          const d = new Date(x.createdAt || x.punchIn || Date.now());
           const hasLocation = x.location && x.location.lat && x.location.lng;
           const mapLink = hasLocation 
             ? `<a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}">View Map</a>` 
@@ -1173,17 +1195,23 @@
             imgSrc = imgSrc.replace(/^http:\/\//i, 'https://');
           }
 
-          const loginStr = x.loginTime || x.punchTime || d.toLocaleTimeString();
-          const logoutStr = x.logoutTime 
-            ? `<span style="color:#059669; font-weight:700;">${escapeHtml(x.logoutTime)}</span>` 
+          const cleanLogin = formatDisplayTime(x.loginTime || x.punchTime, x.punchIn || x.createdAt) || d.toLocaleTimeString();
+          const cleanLogout = formatDisplayTime(x.logoutTime || x.punchOut, x.punchOut);
+
+          const logoutStr = cleanLogout 
+            ? `<span style="color:#059669; font-weight:700;">${escapeHtml(cleanLogout)}</span>` 
             : `<span style="color:#94a3b8; font-style:italic;">-- (Active)</span>`;
 
           const displayId = (x.empId && x.empId !== 'undefined' && x.empId !== 'null') ? x.empId : '-';
 
+          const formattedDate = !isNaN(d.getTime()) 
+            ? d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' })
+            : (x.punchDate || '-');
+
           return `<tr>
             <td><b>${escapeHtml(x.empName || 'Employee')}</b><br><small style="color:#64748b;">${escapeHtml(displayId)}</small></td>
-            <td>${d.toLocaleDateString()}</td>
-            <td><b style="color:#2563eb;">${escapeHtml(loginStr)}</b></td>
+            <td>${formattedDate}</td>
+            <td><b style="color:#2563eb;">${escapeHtml(cleanLogin)}</b></td>
             <td>${logoutStr}</td>
             <td><span class="badge">${escapeHtml(x.status || 'Present')}</span></td>
             <td>

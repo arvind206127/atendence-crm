@@ -27,6 +27,42 @@ try {
   }
 } catch (e) {
   // Ignored on read-only environments like Vercel
+// Helpers for Indian Standard Time (Asia/Kolkata, UTC+5:30)
+function formatCleanISTTime(dateOrStr) {
+  if (!dateOrStr) return null;
+  try {
+    // If it's already a short clean time like "01:34:00 PM"
+    if (typeof dateOrStr === 'string' && /^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(dateOrStr.trim())) {
+      return dateOrStr.trim();
+    }
+    const d = new Date(dateOrStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    }
+  } catch (e) {}
+  return String(dateOrStr);
+}
+
+function formatCleanISTDate(dateOrStr) {
+  if (!dateOrStr) return null;
+  try {
+    const d = new Date(dateOrStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+  } catch (e) {}
+  return String(dateOrStr);
 }
 
 // 1. Submit Attendance API (POST - Punch In / Login Attendance)
@@ -140,7 +176,7 @@ router.post('/submit', async (req, res) => {
     }
 
     const now = new Date();
-    const loginTimeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    const loginTimeStr = formatCleanISTTime(now);
 
     const record = new Attendance({
       empId: finalEmpId,
@@ -248,7 +284,7 @@ router.all(['/punch-out', '/logout'], async (req, res) => {
     }
 
     const now = new Date();
-    const logoutTimeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    const logoutTimeStr = formatCleanISTTime(now);
 
     if (!record) {
       // If no attendance record exists at all, create one
@@ -431,11 +467,14 @@ router.get(['/all', '/logs'], async (req, res) => {
       const finalEmpName = (u && u.name) ? u.name : (rawEmpName || 'Employee');
       const finalEmail = (u && u.email) ? u.email : (rawEmpName === 'abhi' ? 'abh@gmail.com' : 'N/A');
 
-      // Login Time (Punch In Time)
-      const loginTimeString = r.loginTime || punchInDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+      // Login Time (Punch In Time) in Indian Standard Time (IST)
+      const loginTimeString = formatCleanISTTime(r.punchIn || r.loginTime || r.createdAt);
 
-      // Logout Time (Punch Out Time)
-      const logoutTimeString = r.logoutTime || (punchOutDate ? punchOutDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }) : null);
+      // Logout Time (Punch Out Time) in Indian Standard Time (IST)
+      const logoutTimeString = (r.punchOut || r.logoutTime) ? formatCleanISTTime(r.punchOut || r.logoutTime) : null;
+
+      const punchDateString = formatCleanISTDate(r.punchIn || r.createdAt);
+      const punchOutDateString = r.punchOut ? formatCleanISTDate(r.punchOut) : null;
 
       const lat = r.location?.lat;
       const lng = r.location?.lng;
@@ -450,14 +489,14 @@ router.get(['/all', '/logs'], async (req, res) => {
         empName: finalEmpName,
         email: finalEmail,
         status: r.status || 'Present',
-        punchDate: createdAt.toLocaleDateString(),
-        punchTime: loginTimeString,        // Existing key preserved for backward compatibility
-        loginTime: loginTimeString,        // Explicit Login Time
+        punchDate: punchDateString,
+        punchTime: loginTimeString,        // Clean IST time (e.g. 01:34:00 PM)
+        loginTime: loginTimeString,        // Explicit Login Time (clean IST)
         punchInTime: loginTimeString,      // Explicit Punch In Time
         logoutTime: logoutTimeString,      // Explicit Logout Time (or null if active)
         punchOutTime: logoutTimeString,    // Explicit Punch Out Time (or null if active)
-        punchInDate: punchInDate.toLocaleDateString(),
-        punchOutDate: punchOutDate ? punchOutDate.toLocaleDateString() : null,
+        punchInDate: punchDateString,
+        punchOutDate: punchOutDateString,
         timestamp: createdAt.toISOString(),
         punchIn: r.punchIn || r.createdAt,
         punchOut: r.punchOut || null,
@@ -521,10 +560,8 @@ router.get('/employees', async (req, res) => {
       cleanAtt.selfie = cleanAtt.imageUrl;
       cleanAtt.empId = id;
 
-      const inDate = cleanAtt.punchIn ? new Date(cleanAtt.punchIn) : new Date(cleanAtt.createdAt || Date.now());
-      const outDate = cleanAtt.punchOut ? new Date(cleanAtt.punchOut) : null;
-      cleanAtt.loginTime = cleanAtt.loginTime || inDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-      cleanAtt.logoutTime = cleanAtt.logoutTime || (outDate ? outDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }) : null);
+      cleanAtt.loginTime = formatCleanISTTime(cleanAtt.punchIn || cleanAtt.loginTime || cleanAtt.createdAt);
+      cleanAtt.logoutTime = (cleanAtt.punchOut || cleanAtt.logoutTime) ? formatCleanISTTime(cleanAtt.punchOut || cleanAtt.logoutTime) : null;
       cleanAtt.punchTime = cleanAtt.loginTime;
       cleanAtt.punchInTime = cleanAtt.loginTime;
       cleanAtt.punchOutTime = cleanAtt.logoutTime;
