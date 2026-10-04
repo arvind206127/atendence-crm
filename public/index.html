@@ -635,15 +635,12 @@
           <button type="button" class="secondary" onclick="getLocation()" style="margin-top:0;">📍 Get Current Location</button>
           <div id="locationStatus" class="status">Click "Get Current Location" to detect GPS and address.</div>
 
-          <div class="actions" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button type="button" class="primary" onclick="submitAttendance()" style="padding: 13px 18px; font-size:14px; background:#16a34a; flex:1; min-width:160px;">
-              ✓ Punch In (Submit)
-            </button>
-            <button type="button" class="danger-btn" onclick="punchOutAttendance()" style="padding: 13px 18px; font-size:14px; background:#dc2626; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; flex:1; min-width:160px; box-shadow:0 2px 4px rgba(220,38,38,0.2);">
-              🚪 Punch Out (Logout Time)
+          <div class="actions" style="margin-top:16px;">
+            <button type="button" class="primary" onclick="submitAttendance()" style="padding: 13px 18px; font-size:14px; background:#16a34a; width: 100%;">
+              ✓ Punch In
             </button>
           </div>
-          <div id="message" class="status">Capture a selfie and detect location to punch in, or click Punch Out when leaving.</div>
+          <div id="message" class="status">Capture a selfie and detect location to submit your attendance.</div>
         </section>
 
         <!-- ATTENDANCE RECORDS PANEL -->
