@@ -1001,6 +1001,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             empId,
+            empName: empName || 'Employee',
             status: 'Present',
             location: {
               address: gps.address || 'N/A',
@@ -1016,6 +1017,9 @@
 
         if (response.ok && result.success) {
           const empDisplayName = result.empName || empName;
+          if (result.empId) localStorage.setItem('empId', result.empId);
+          if (result.empName) localStorage.setItem('empName', result.empName);
+
           message.textContent = `✓ Attendance recorded successfully for ${empDisplayName}!`;
           
           Toastify({

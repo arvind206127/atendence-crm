@@ -50,11 +50,12 @@ router.post('/login', async (req, res) => {
 
     const trimmedId = employeeInput.trim();
 
-    // Search by empId, employeeId, or email (case-insensitive)
+    // Search by empId, employeeId, name, or email (case-insensitive)
     const user = await User.findOne({
       $or: [
         { empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
         { employeeId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
+        { name: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
         { email: { $regex: new RegExp(`^${trimmedId}$`, 'i') } }
       ]
     }).select('+passwordHash +password');

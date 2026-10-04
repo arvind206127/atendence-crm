@@ -32,32 +32,53 @@ try {
 // 1. Submit Attendance API (POST)
 router.post('/submit', async (req, res) => {
   try {
-    const { empId, password, status, location, selfie } = req.body;
+    const { empId, empName, password, status, location, selfie } = req.body;
 
     if (!empId || !location || !selfie) {
       return res.status(400).json({ success: false, message: 'Employee ID, selfie, and location are required.' });
     }
 
-    const trimmedId = empId.trim();
+    const trimmedId = String(empId).trim();
 
-    // Check in User collection by empId or email
-    const user = await User.findOne({
-      $or: [
-        { empId: trimmedId },
-        { empId: trimmedId.toUpperCase() },
-        { email: trimmedId.toLowerCase() }
-      ]
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Employee ID not found! Please check your ID or sign up first.'
+    // 1. Flexible lookup in User collection (by empId, name, or email)
+    let user = null;
+    try {
+      user = await User.findOne({
+        $or: [
+          { empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
+          { name: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
+          { email: { $regex: new RegExp(`^${trimmedId}$`, 'i') } }
+        ]
       });
+    } catch (e) {
+      user = await User.findOne({ empId: trimmedId });
     }
 
-    // If password is provided, verify it with bcrypt
-    if (password && user.password) {
+    // 2. Resolve employee ID and Name
+    let finalEmpId = user ? user.empId : trimmedId;
+    let finalEmpName = user ? user.name : (empName && empName !== 'Employee' ? empName : trimmedId);
+
+    // 3. Fallback: If not in User collection, try finding previous Attendance record to get employee name
+    if (!user) {
+      try {
+        const prev = await Attendance.findOne({
+          $or: [
+            { empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
+            { empName: { $regex: new RegExp(`^${trimmedId}$`, 'i') } }
+          ]
+        }).sort({ createdAt: -1 });
+
+        if (prev) {
+          finalEmpName = prev.empName || finalEmpName;
+          finalEmpId = prev.empId || finalEmpId;
+        }
+      } catch (e) {
+        // Fallback ignore
+      }
+    }
+
+    // If password is provided and user has password, verify it
+    if (password && user && user.password) {
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(401).json({
@@ -71,7 +92,7 @@ router.post('/submit', async (req, res) => {
     let imageRelativePath = '';
     if (selfie && selfie.startsWith('data:image')) {
       try {
-        const filename = `selfie-${user.empId}-${Date.now()}.jpg`;
+        const filename = `selfie-${finalEmpId}-${Date.now()}.jpg`;
         const filePath = path.join(uploadsDir, filename);
         const base64Data = selfie.replace(/^data:image\/\w+;base64,/, '');
         fs.writeFileSync(filePath, base64Data, 'base64');
@@ -83,8 +104,8 @@ router.post('/submit', async (req, res) => {
     }
 
     const record = new Attendance({
-      empId: user.empId,
-      empName: user.name,
+      empId: finalEmpId,
+      empName: finalEmpName,
       status: status || 'Present',
       location,
       selfie: selfie, // Always preserve the actual image data in DB (works on Vercel)
@@ -97,8 +118,9 @@ router.post('/submit', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Attendance recorded successfully for ${user.name}!`,
-      empName: user.name,
+      message: `Attendance recorded successfully for ${finalEmpName}!`,
+      empName: finalEmpName,
+      empId: finalEmpId,
       imageUrl: fullImageUrl,
       data: record
     });
