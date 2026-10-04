@@ -906,20 +906,20 @@
       }).showToast();
     }
 
-    // Go to CRM Dashboard with secure SSO token
+    // Go to CRM Dashboard with secure SSO token (routes directly to /employee dashboard)
     async function goToCrmDashboard() {
       const empId = localStorage.getItem('empId') || '';
       const empName = localStorage.getItem('empName') || '';
       const cachedUrl = localStorage.getItem('crmDashboardUrl');
 
       Toastify({
-        text: "Opening CRM Dashboard...",
+        text: "Opening Employee Dashboard...",
         duration: 2000,
         style: { background: "#2563eb" }
       }).showToast();
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/crm-sso?empId=${encodeURIComponent(empId)}&name=${encodeURIComponent(empName)}&format=json`);
+        const res = await fetch(`${API_BASE}/api/auth/crm-sso?empId=${encodeURIComponent(empId)}&name=${encodeURIComponent(empName)}&target=/employee&format=json`);
         const data = await res.json();
 
         if (data.success && data.redirectUrl) {
@@ -937,14 +937,17 @@
       }
 
       // Fallback if network issue or offline
-      if (cachedUrl) {
+      if (cachedUrl && !cachedUrl.endsWith('target=%2F') && !cachedUrl.endsWith('target=/')) {
         const win = window.open(cachedUrl, '_blank');
         if (!win || win.closed || typeof win.closed === 'undefined') {
           window.location.href = cachedUrl;
         }
       } else {
-        const fallback = 'https://advmen-crm-frontend.vercel.app';
-        window.open(fallback, '_blank');
+        const fallback = 'https://advmen-crm-frontend.vercel.app/employee';
+        const win = window.open(fallback, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          window.location.href = fallback;
+        }
       }
     }
 

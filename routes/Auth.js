@@ -8,19 +8,49 @@ const JWT_SECRET = process.env.JWT_SECRET || 'apna_secret_key_yahan_rakhein';
 const SSO_SHARED_SECRET = process.env.SSO_SHARED_SECRET || 'advmen_sso_shared_secret_2026_key_secure_99';
 const CRM_FRONTEND_URL = (process.env.CRM_FRONTEND_URL || 'https://advmen-crm-frontend.vercel.app').replace(/\/+$/, '');
 
-// Helper: Generate signed SSO token and CRM dashboard redirect URL
-function createSsoPayloadAndToken(user, fallbackId, fallbackName) {
+// Helper: Determine user role and corresponding dashboard target route in Sales CRM
+function determineUserRoleAndTarget(user, empInput) {
+  let role = 'SALES_REP';
+  let target = '/employee';
+
+  const userRoleStr = String(user?.role || '').toUpperCase();
+  const empIdStr = String(empInput || user?.empId || user?.employeeId || '').toUpperCase();
+  const emailStr = String(user?.email || '').toLowerCase();
+  const nameStr = String(user?.name || '').toLowerCase();
+
+  const isAdmin = userRoleStr.includes('ADMIN') || 
+                  empIdStr.includes('ADMIN') || 
+                  emailStr.includes('admin') || 
+                  nameStr === 'admin';
+
+  if (isAdmin) {
+    role = userRoleStr.includes('SUPER') ? 'SUPER_ADMIN' : 'ORG_ADMIN';
+    target = '/roles/super-admin';
+  } else {
+    // Default for employees: SALES_REP role directs to /employee dashboard in Sales CRM
+    role = 'SALES_REP';
+    target = '/employee';
+  }
+
+  return { role, target };
+}
+
+// Helper: Generate signed SSO token and CRM dashboard redirect URL based on role
+function createSsoPayloadAndToken(user, fallbackId, fallbackName, explicitTarget) {
   const resolvedEmpId = (user && (user.empId || user.employeeId)) ? (user.empId || user.employeeId) : fallbackId;
   const resolvedName = (user && user.name) ? user.name : (fallbackName || 'Employee');
   const cleanIdStr = String(resolvedEmpId || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
   const resolvedEmail = (user && user.email) ? user.email : `${cleanIdStr || 'user'}@advmen.com`;
   const resolvedId = user ? String(user._id) : `usr_${cleanIdStr || 'id'}`;
 
+  const { role, target: roleTarget } = determineUserRoleAndTarget(user, resolvedEmpId);
+  const target = explicitTarget || roleTarget;
+
   const payload = {
     id: resolvedId,
     name: resolvedName,
     email: resolvedEmail,
-    role: 'SALES_REP',
+    role: role,
     organizationId: 'org_advmen_platform',
     organizationName: 'ADVMEN Workspace',
     employeeId: resolvedEmpId,
@@ -29,9 +59,9 @@ function createSsoPayloadAndToken(user, fallbackId, fallbackName) {
   };
 
   const ssoToken = jwt.sign(payload, SSO_SHARED_SECRET, { expiresIn: '8h' });
-  const redirectUrl = `${CRM_FRONTEND_URL}/auth/sso?token=${encodeURIComponent(ssoToken)}&target=/`;
+  const redirectUrl = `${CRM_FRONTEND_URL}/auth/sso?token=${encodeURIComponent(ssoToken)}&target=${encodeURIComponent(target)}`;
 
-  return { ssoToken, redirectUrl, user: payload, crmFrontendUrl: CRM_FRONTEND_URL };
+  return { ssoToken, redirectUrl, user: payload, role, target, crmFrontendUrl: CRM_FRONTEND_URL };
 }
 
 // 1. Signup Route
@@ -272,9 +302,9 @@ router.all(['/crm-sso', '/sso-token', '/sso-redirect'], async (req, res) => {
       });
     }
 
-    const target = req.query?.target || req.body?.target || '/';
-    const ssoData = createSsoPayloadAndToken(user, empInput || 'EMP-USER', user ? user.name : 'Employee');
-    const redirectUrl = `${CRM_FRONTEND_URL}/auth/sso?token=${encodeURIComponent(ssoData.ssoToken)}&target=${encodeURIComponent(target)}`;
+    const requestedTarget = req.query?.target || req.body?.target;
+    const ssoData = createSsoPayloadAndToken(user, empInput || 'EMP-USER', user ? user.name : 'Employee', requestedTarget);
+    const redirectUrl = ssoData.redirectUrl;
 
     // If browser GET navigation without JSON expectation, redirect directly
     const wantsJson = req.xhr || req.query?.format === 'json' || (req.headers.accept && req.headers.accept.includes('application/json'));
@@ -287,6 +317,8 @@ router.all(['/crm-sso', '/sso-token', '/sso-redirect'], async (req, res) => {
       token: ssoData.ssoToken,
       ssoToken: ssoData.ssoToken,
       redirectUrl,
+      role: ssoData.role,
+      target: ssoData.target,
       crmFrontendUrl: CRM_FRONTEND_URL,
       user: ssoData.user
     });
