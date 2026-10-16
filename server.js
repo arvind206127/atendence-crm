@@ -91,6 +91,8 @@ app.use('/api/employees', employeeRoutes);
 app.use('/employees', employeeRoutes);
 
 // Static files / Frontend serve karne ke liye
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Fallback to index.html for SPA/frontend

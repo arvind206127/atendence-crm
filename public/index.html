@@ -485,6 +485,35 @@
       height: 100%;
       object-fit: cover;
       display: none;
+      transform: scaleX(-1); /* Selfie mirror effect for natural viewing */
+    }
+
+    .preview-in-camera {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 5;
+    }
+
+    .selfie-ready-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(16, 185, 129, 0.95);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
     .preview {
@@ -1577,22 +1606,25 @@
             <span>Selfie Photo *</span>
             <small style="color:var(--text-muted); font-weight:normal;">Required for In & Out</small>
           </label>
-          <div class="camera">
+          <div class="camera" id="cameraBox">
             <div id="cameraPlaceholder" class="camera-placeholder">
               <span class="icon">📷</span>
               <div style="font-weight:600; color:#cbd5e1;">Camera is currently off</div>
               <small style="color:#94a3b8">Click "Open Camera" to turn on webcam</small>
             </div>
-            <video id="video" autoplay playsinline></video>
+            <video id="video" autoplay playsinline muted></video>
+            <img id="preview" class="preview-in-camera" alt="Selfie preview" style="display:none;">
+            <div id="selfieCapturedBadge" class="selfie-ready-badge" style="display:none;">
+              <span>✓ Selfie Ready</span>
+            </div>
           </div>
 
           <div class="camera-btn-group">
-            <button type="button" class="btn-cam-open" onclick="startCamera()">📷 Open Camera</button>
-            <button type="button" class="btn-cam-capture" onclick="takeSelfie()">📸 Capture Selfie</button>
+            <button type="button" class="btn-cam-open" id="btnCamOpen" onclick="startCamera()">📷 Open Camera</button>
+            <button type="button" class="btn-cam-capture" id="btnCamCapture" onclick="takeSelfie()">📸 Capture Selfie</button>
           </div>
           
           <canvas id="canvas" style="display:none"></canvas>
-          <img id="preview" class="preview" alt="Selfie preview">
 
           <!-- WORK FROM HOME / HOME LOCATION SELECTOR BUTTON -->
           <div class="home-location-card" id="homeLocationCard">
@@ -1729,11 +1761,11 @@
         Half Day Notification
       </h3>
       <div id="halfDayModalBox" style="background:#fffbeb; border:1px solid #fed7aa; border-radius:10px; padding:12px 14px; margin-bottom:18px; text-align:left;">
-        <p id="halfDayModalHeading" style="font-size:13.5px; color:#9a3412; font-weight:700; line-height:1.5;">
-          ⚠️ Aap 10:05 AM ke baad login / punch kar rahe hain!
+        <p id="halfDayModalHeading" style="font-size:14px; color:#991b1b; font-weight:700; line-height:1.5;">
+          🚫 Aapka Half Day lag gaya hai!
         </p>
         <p id="halfDayModalText" style="font-size:13px; color:#b45309; margin-top:6px; line-height:1.4;">
-          Company policy ke tahat aapka aaj <b>Half Day</b> lag gaya hai.
+          Subah 10:05 AM ke baad Punch In band hai. Ab punch in <b>01:20 PM</b> par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!
         </p>
       </div>
       <button type="button" onclick="closeHalfDayModal()" style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:#fff; border:none; padding:12px 28px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(217, 119, 6, 0.3);">
@@ -1857,7 +1889,7 @@
       return Math.round(R * c);
     }
 
-    // Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+    // Check 10:05 AM Cutoff & 01:20 PM Half Day Timing Rule in Asia/Kolkata
     function evaluateCurrentPunchWindow() {
       const checkDate = new Date();
       try {
@@ -1875,24 +1907,24 @@
         if (totalMinutes <= 605) {
           return { allowed: true, status: 'Present', isHalfDay: false, window: 'on_time' };
         }
-        // Window 2: Between 10:05 AM and 1:30 PM (606 to 809 mins) -> BLOCKED
-        if (totalMinutes < 810) {
+        // Window 2: Between 10:05 AM and 01:20 PM (606 to 799 mins) -> BLOCKED
+        if (totalMinutes < 800) {
           return {
             allowed: false,
             blockedUntilHalfDay: true,
             status: 'Absent',
             window: 'morning_blocked',
-            nextAllowedTime: '1:30 PM',
-            message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+            nextAllowedTime: '01:20 PM',
+            message: 'Aapka Half Day lag gaya hai! Subah 10:05 AM ke baad Punch In band hai. Ab punch in 01:20 PM par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!'
           };
         }
-        // Window 3: 1:30 PM onwards -> Allowed, Half Day
+        // Window 3: 01:20 PM onwards (>= 800 mins) -> Allowed, Half Day
         return {
           allowed: true,
           status: 'Half Day',
           isHalfDay: true,
           window: 'afternoon_half_day',
-          message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+          message: 'Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai (10:05 AM cutoff exceed hone par).'
         };
       } catch (e) {
         return { allowed: true, status: 'Present', isHalfDay: false };
@@ -1932,13 +1964,13 @@
           badgeEl.style.background = '#fee2e2';
           badgeEl.style.color = '#991b1b';
           badgeEl.style.borderColor = '#fecaca';
-          textEl.textContent = '⛔ 10:05 AM ke baad Punch In Band hai! Lunch ke baad 1:30 PM par punch in karein (Half Day lagega)';
+          textEl.textContent = '⛔ 10:05 AM ke baad Punch In Band hai! 01:20 PM par punch in karein (Half Day lagega, nahi kiya to Absent lagega)';
         } else if (win.isHalfDay) {
           badgeEl.className = 'rule-pill halfday';
           badgeEl.style.background = '#fffbeb';
           badgeEl.style.color = '#b45309';
           badgeEl.style.borderColor = '#fde68a';
-          textEl.textContent = '⚠️ 1:30 PM Half Day Window Active (Punch In karne par Half Day lagega)';
+          textEl.textContent = '⚠️ 01:20 PM Window Active: Ab Punch In karne par Half Day lagega (agar punch in nahi kiya to Absent lagega)';
         } else {
           badgeEl.className = 'rule-pill ontime';
           badgeEl.style.background = '#ecfdf5';
@@ -2116,7 +2148,6 @@
       const boxEl = document.getElementById('halfDayModalBox');
       const headingEl = document.getElementById('halfDayModalHeading');
       const textEl = document.getElementById('halfDayModalText');
-      if (textEl && customMsg) textEl.textContent = customMsg;
       if (isBlocked) {
         if (iconEl) {
           iconEl.textContent = '⛔';
@@ -2124,14 +2155,17 @@
           iconEl.style.borderColor = '#fecaca';
           iconEl.style.color = '#dc2626';
         }
-        if (titleEl) titleEl.textContent = 'Punch In Blocked (10:05 AM Cutoff)';
+        if (titleEl) titleEl.textContent = 'Punch In Blocked - Half Day Notice';
         if (boxEl) {
           boxEl.style.background = '#fef2f2';
           boxEl.style.borderColor = '#fecaca';
         }
         if (headingEl) {
           headingEl.style.color = '#991b1b';
-          headingEl.textContent = '🚫 Subah 10:05 AM ke baad Punch In Band Hai!';
+          headingEl.textContent = '🚫 Aapka Half Day lag gaya hai!';
+        }
+        if (textEl) {
+          textEl.textContent = customMsg || 'Aapka Half Day lag gaya hai! Subah 10:05 AM ke baad Punch In band hai. Ab punch in 01:20 PM par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!';
         }
       } else {
         if (iconEl) {
@@ -2148,6 +2182,9 @@
         if (headingEl) {
           headingEl.style.color = '#9a3412';
           headingEl.textContent = '⚠️ Aapka Half Day lag gaya hai!';
+        }
+        if (textEl) {
+          textEl.textContent = customMsg || 'Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai.';
         }
       }
       if (modal) modal.style.display = 'flex';
@@ -2356,11 +2393,11 @@
           const isLate = Boolean(data.isHalfDay || win.isHalfDay);
 
           if (isBlocked) {
-            const notifMsg = data.notificationMessage || win.message || "Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.";
+            const notifMsg = data.notificationMessage || win.message || "Aapka Half Day lag gaya hai! Subah 10:05 AM ke baad Punch In band hai. Ab punch in 01:20 PM par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!";
             showHalfDayNotificationModal(notifMsg, true);
             showToast("⛔ " + notifMsg, "#ef4444", 6500);
           } else if (isLate) {
-            const notifMsg = data.notificationMessage || win.message || "Aapne lunch ke baad login / punch in kiya hai. Aapka Half Day mark ho gaya hai!";
+            const notifMsg = data.notificationMessage || win.message || "Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai.";
             showHalfDayNotificationModal(notifMsg, false);
             showToast("⚠️ " + notifMsg, "#ea580c", 6500);
           } else {
@@ -2408,7 +2445,7 @@
     // --- WORK FROM HOME / HOME LOCATION MODE ---
     let isHomeModeActive = false;
 
-    function toggleHomeLocationMode() {
+    async function toggleHomeLocationMode() {
       isHomeModeActive = !isHomeModeActive;
       const btn = document.getElementById('btnHomeLocationToggle');
       const card = document.getElementById('homeLocationCard');
@@ -2416,6 +2453,7 @@
       const sub = document.getElementById('homeLocationSubtitle');
       const targetLocationText = document.getElementById('targetLocationText');
       const geofenceRuleSub = document.getElementById('geofenceRuleSub');
+      const locationStatusText = document.getElementById('locationStatusText');
 
       if (isHomeModeActive) {
         btn.classList.add('active');
@@ -2429,7 +2467,23 @@
           geofenceRuleSub.textContent = '🏠 Home Mode (No 50m Limit)';
           geofenceRuleSub.style.color = '#10b981';
         }
-        showToast("🏠 Home Location Active! Punch allowed from home.", "#10b981");
+        showToast("🏠 Home Location Active! Resolving your actual location...", "#10b981");
+
+        // If GPS is already detected, re-resolve to get their REAL home address (NOT office!)
+        if (gps && gps.lat && gps.lng) {
+          if (locationStatusText) {
+            locationStatusText.innerHTML = `<b>Address:</b> <span style="color:#2563eb;">Fetching your current home location...</span><br><small style="color:#64748b;">Detected: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} | GPS Accuracy: ±${gps.accuracy}m</small>`;
+          }
+          const realHomeAddr = await reverseGeocode(gps.lat, gps.lng, true);
+          gps.address = realHomeAddr;
+          gps.distanceMeters = 0;
+          if (locationStatusText) {
+            locationStatusText.innerHTML = `<b>Address:</b> ${escapeHtml(realHomeAddr)}<br><small style="color:#64748b;">Detected: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} | GPS Accuracy: ±${gps.accuracy}m</small>`;
+          }
+          updateGeofencePillUI(0, gps.accuracy);
+        } else {
+          getLocation();
+        }
       } else {
         btn.classList.remove('active');
         card.classList.remove('active');
@@ -2443,10 +2497,23 @@
           geofenceRuleSub.style.color = '#0284c7';
         }
         showToast("🏢 Switched back to Office Campus Mode.", "#2563eb");
-      }
 
-      if (gps) {
-        updateGeofencePillUI(gps.distanceMeters, gps.accuracy);
+        if (gps && gps.lat && gps.lng) {
+          const rawDistance = Math.min(
+            calculateDistanceMeters(gps.lat, gps.lng, OFFICE_CONFIG.lat, OFFICE_CONFIG.lng),
+            calculateDistanceMeters(gps.lat, gps.lng, 28.59867, 77.43187),
+            calculateDistanceMeters(gps.lat, gps.lng, 28.600556, 77.432778)
+          );
+          const officeAddr = await reverseGeocode(gps.lat, gps.lng, false);
+          const atOffice = isWithinOffice(gps.lat, gps.lng, rawDistance, officeAddr);
+          const dist = atOffice ? 0 : rawDistance;
+          gps.distanceMeters = dist;
+          gps.address = officeAddr;
+          if (locationStatusText) {
+            locationStatusText.innerHTML = `<b>Address:</b> ${escapeHtml(officeAddr)}<br><small style="color:#64748b;">Detected: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} | GPS Accuracy: ±${gps.accuracy}m</small>`;
+          }
+          updateGeofencePillUI(dist, gps.accuracy);
+        }
       }
     }
 
@@ -2477,6 +2544,9 @@
     async function startCamera() {
       const video = document.getElementById('video');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      const preview = document.getElementById('preview');
+      const selfieBadge = document.getElementById('selfieCapturedBadge');
+      const btnCamOpen = document.getElementById('btnCamOpen');
       const message = document.getElementById('message');
 
       try {
@@ -2484,18 +2554,26 @@
           stream.getTracks().forEach(track => track.stop());
         }
 
+        if (preview) preview.style.display = 'none';
+        if (selfieBadge) selfieBadge.style.display = 'none';
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } },
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
           audio: false
         });
         video.srcObject = stream;
+        video.muted = true;
         video.style.display = "block";
         if (cameraPlaceholder) cameraPlaceholder.style.display = "none";
-        message.textContent = "Camera active. Click 'Capture Selfie' when ready.";
+
+        await video.play().catch(e => console.warn("video.play error:", e));
+
+        if (btnCamOpen) btnCamOpen.innerHTML = "📷 Camera On";
+        if (message) message.textContent = "Camera active. Click 'Capture Selfie' when ready.";
         showToast("Webcam connected!", "#2563eb", 2000);
       } catch (e) {
         console.error("Camera error:", e);
-        message.textContent = "Camera access denied or unavailable.";
+        if (message) message.textContent = "Camera access denied or unavailable: " + (e.message || '');
         showToast("Camera access denied or unavailable!", "#ef4444");
       }
     }
@@ -2504,34 +2582,111 @@
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const preview = document.getElementById('preview');
+      const selfieBadge = document.getElementById('selfieCapturedBadge');
+      const btnCamOpen = document.getElementById('btnCamOpen');
       const message = document.getElementById('message');
 
       if (!stream) {
-        message.textContent = "Please click 'Open Camera' first.";
+        if (message) message.textContent = "Please click 'Open Camera' first.";
         showToast("Please click 'Open Camera' first!", "#f59e0b");
-        return;
+        startCamera();
+        return false;
       }
 
-      // Resize to compact dimensions (360x270) for ultra-fast instant punch in / out
-      const targetW = 360;
-      const targetH = 270;
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        showToast("Waiting for camera feed...", "#f59e0b", 1500);
+        return false;
+      }
+
+      const targetW = 480;
+      const targetH = Math.round((video.videoHeight / video.videoWidth) * targetW) || 360;
       canvas.width = targetW; 
       canvas.height = targetH;
-      canvas.getContext("2d").drawImage(video, 0, 0, targetW, targetH);
-      selfieData = canvas.toDataURL("image/jpeg", 0.65);
+      const ctx = canvas.getContext("2d");
 
-      preview.src = selfieData; 
-      preview.style.display = "block";
-      message.textContent = "✓ Selfie captured! Now click punch in or out.";
-      showToast("Selfie captured! ✓", "#10b981", 1500);
+      // Mirror horizontally so the captured selfie matches what user saw in camera preview
+      ctx.translate(targetW, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, targetW, targetH);
+      selfieData = canvas.toDataURL("image/jpeg", 0.75);
+
+      if (preview) {
+        preview.src = selfieData;
+        preview.style.display = "block";
+      }
+      video.style.display = "none";
+      if (selfieBadge) selfieBadge.style.display = "flex";
+      if (btnCamOpen) btnCamOpen.innerHTML = "🔄 Retake Photo";
+
+      if (message) message.textContent = "✓ Selfie photo captured! Now click punch in or out.";
+      showToast("Selfie photo captured! ✓", "#10b981", 1500);
+      return true;
     }
 
-    // --- REVERSE GEOCODING & LOCATION (ULTRA FAST) ---
-    async function reverseGeocode(lat, lng) {
-      if (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500) {
-        return "NX One, Techzone 4, Greater Noida West, Uttar Pradesh";
+    // --- REVERSE GEOCODING & LOCATION ---
+    async function reverseGeocode(lat, lng, isHome = false) {
+      // 1. If in office mode AND physically within 100m of office coordinates
+      const distToOffice = Math.min(
+        calculateDistanceMeters(lat, lng, OFFICE_CONFIG.lat, OFFICE_CONFIG.lng),
+        calculateDistanceMeters(lat, lng, 28.59867, 77.43187),
+        calculateDistanceMeters(lat, lng, 28.600556, 77.432778)
+      );
+
+      if (!isHome && distToOffice <= (OFFICE_CONFIG.radiusMeters || 100)) {
+        return "NX One Campus, Techzone 4, Greater Noida West, Uttar Pradesh";
       }
-      return `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+
+      // 2. Query BigDataCloud Client Reverse Geocode API (fast, client-side, CORS enabled, free)
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const bdcRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`, { signal: controller.signal });
+        clearTimeout(timer);
+        if (bdcRes.ok) {
+          const bdcData = await bdcRes.json();
+          const parts = [];
+          if (bdcData.locality) parts.push(bdcData.locality);
+          if (bdcData.city && bdcData.city !== bdcData.locality) parts.push(bdcData.city);
+          if (bdcData.principalSubdivision) parts.push(bdcData.principalSubdivision);
+          if (bdcData.postcode) parts.push(bdcData.postcode);
+          if (parts.length > 0) {
+            const fullAddr = parts.join(', ');
+            return isHome ? `Home: ${fullAddr}` : fullAddr;
+          }
+        }
+      } catch (e) {
+        console.warn("BigDataCloud geocode failed:", e);
+      }
+
+      // 3. Fallback: OpenStreetMap Nominatim
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { signal: controller.signal });
+        clearTimeout(timer);
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (nomData && nomData.display_name) {
+            const addr = nomData.address || {};
+            const shortParts = [
+              addr.suburb || addr.neighbourhood || addr.residential || addr.road,
+              addr.city || addr.town || addr.county || addr.state_district,
+              addr.state,
+              addr.postcode
+            ].filter(Boolean);
+            const resolved = shortParts.length > 0 ? shortParts.join(', ') : nomData.display_name;
+            return isHome ? `Home: ${resolved}` : resolved;
+          }
+        }
+      } catch (e) {
+        console.warn("Nominatim geocode failed:", e);
+      }
+
+      // 4. Fallback if offline or API unreachable
+      if (isHome) {
+        return `Home Location (GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+      }
+      return `Current Location (GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)})`;
     }
 
     async function getLocation() {
@@ -2543,7 +2698,9 @@
         return;
       }
 
-      locationStatusText.textContent = "Detecting high-precision GPS coordinates...";
+      locationStatusText.textContent = isHomeModeActive 
+        ? "Detecting current Home GPS coordinates..." 
+        : "Detecting high-precision GPS coordinates...";
 
       navigator.geolocation.getCurrentPosition(async (p) => {
         const lat = p.coords.latitude;
@@ -2557,9 +2714,9 @@
         );
         locationStatusText.textContent = "Fetching readable address...";
 
-        const addressText = await reverseGeocode(lat, lng);
-        const atOffice = isWithinOffice(lat, lng, rawDistance, addressText);
-        const distance = (atOffice || rawDistance <= 500) ? 0 : rawDistance;
+        const addressText = await reverseGeocode(lat, lng, isHomeModeActive);
+        const atOffice = !isHomeModeActive && isWithinOffice(lat, lng, rawDistance, addressText);
+        const distance = (isHomeModeActive || atOffice) ? 0 : rawDistance;
 
         gps = { lat, lng, accuracy, address: addressText, distanceMeters: distance };
 
@@ -2589,6 +2746,7 @@
       const empName = localStorage.getItem('empName') || 'Employee';
       const message = document.getElementById('message');
       const btnIn = document.getElementById('btnPunchIn');
+      const video = document.getElementById('video');
 
       if (!empId || empId === 'undefined' || empId === 'null') {
         showToast("Session expired. Please log in again.", "#ef4444");
@@ -2596,7 +2754,7 @@
         return;
       }
 
-      // Check Punch In timing window: 10:05 AM to 1:30 PM is BLOCKED
+      // Check Punch In timing window: 10:05 AM to 01:20 PM is BLOCKED
       const win = evaluateCurrentPunchWindow();
       if (!win.allowed) {
         showHalfDayNotificationModal(win.message, true);
@@ -2605,39 +2763,28 @@
         return;
       }
 
+      // Auto-capture selfie if camera is streaming but capture button wasn't clicked
       if (!selfieData) {
-        if (stream) {
+        if (stream && video && video.videoWidth > 0) {
           try { takeSelfie(); } catch (e) {}
         }
       }
 
+      // MANDATORY SELFIE CHECK: Real camera selfie required
       if (!selfieData) {
-        // Fallback canvas avatar if camera is not opened or unavailable
-        try {
-          const cv = document.getElementById('canvas');
-          if (cv) {
-            cv.width = 320;
-            cv.height = 240;
-            const ctx = cv.getContext('2d');
-            ctx.fillStyle = '#2563eb';
-            ctx.fillRect(0, 0, 320, 240);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(empName || 'Employee', 160, 125);
-            selfieData = cv.toDataURL('image/jpeg', 0.8);
-          }
-        } catch (e) {}
+        showToast("Punch In ke liye selfie photo zaroori hai! Kripya camera open karein.", "#f59e0b", 4500);
+        if (message) message.textContent = "⚠️ Selfie photo required! Please open camera and capture your selfie.";
+        startCamera();
+        return;
       }
 
       if (!gps) {
-        // Instant fallback to office coordinates if GPS not yet detected
         gps = {
           lat: OFFICE_CONFIG.lat || 28.59867,
           lng: OFFICE_CONFIG.lng || 77.43187,
           accuracy: 10,
           distanceMeters: 0,
-          address: 'NX One Office Campus'
+          address: isHomeModeActive ? 'Home Location' : 'NX One Office Campus'
         };
       }
 
@@ -2695,7 +2842,7 @@
           if (result.empId && result.empId !== 'undefined') localStorage.setItem('empId', result.empId);
 
           if (result.isHalfDay || win.isHalfDay) {
-            const notifMsg = result.notificationMessage || "Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff ke baad). Aapka Half Day lag gaya hai!";
+            const notifMsg = result.notificationMessage || "Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai (10:05 AM cutoff ke baad).";
             showHalfDayNotificationModal(notifMsg, false);
             if (message) message.textContent = `⚠️ Attendance saved as HALF DAY at ${result.loginTime || result.punchTime}!`;
             showToast(`⚠️ Attendance Saved! ` + notifMsg, "#ea580c", 5000);
@@ -2742,6 +2889,7 @@
       const empName = localStorage.getItem('empName') || 'Employee';
       const message = document.getElementById('message');
       const btnOut = document.getElementById('btnPunchOut');
+      const video = document.getElementById('video');
 
       if (!empId || empId === 'undefined' || empId === 'null') {
         showToast("Please log in first to punch out.", "#ef4444");
@@ -2751,27 +2899,16 @@
 
       // Selfie check (bypassed if Lunch is active)
       if (!isLunchActive && !selfieData) {
-        if (stream) {
+        if (stream && video && video.videoWidth > 0) {
           try { takeSelfie(); } catch (e) {}
         }
       }
 
       if (!isLunchActive && !selfieData) {
-        try {
-          const cv = document.getElementById('canvas');
-          if (cv) {
-            cv.width = 320;
-            cv.height = 240;
-            const ctx = cv.getContext('2d');
-            ctx.fillStyle = '#ea580c';
-            ctx.fillRect(0, 0, 320, 240);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(empName || 'Employee', 160, 125);
-            selfieData = cv.toDataURL('image/jpeg', 0.8);
-          }
-        } catch (e) {}
+        showToast("Punch Out ke liye selfie photo zaroori hai! Kripya selfie lein.", "#f59e0b", 4500);
+        if (message) message.textContent = "⚠️ Selfie required for Punch Out! Please open camera and capture a selfie.";
+        startCamera();
+        return;
       }
 
       if (!gps && !isLunchActive) {
@@ -2780,7 +2917,7 @@
           lng: OFFICE_CONFIG.lng || 77.43187,
           accuracy: 10,
           distanceMeters: 0,
-          address: 'NX One Office Campus'
+          address: isHomeModeActive ? 'Home Location' : 'NX One Office Campus'
         };
       }
 
@@ -3017,20 +3154,23 @@
                     : `<span style="color:#94a3b8;">-</span>`));
 
           const dist = x.location?.distanceMeters;
+          const isHomeRecord = Boolean(x.location?.isHome || x.workMode === 'Home' || (x.location?.address && /home/i.test(x.location.address)));
           const isAtOfficeRecord = (dist !== undefined && dist <= (OFFICE_CONFIG.radiusMeters || 100)) || 
             (x.location?.lat >= 28.5900 && x.location?.lat <= 28.6100 && x.location?.lng >= 77.4180 && x.location?.lng <= 77.4420) ||
             /nx\s*one|techzone\s*4|office/i.test(x.location?.address || '');
 
           const distStr = isAbsent 
             ? `<span style="color:#94a3b8;">Not Checked In</span>`
-            : (isAtOfficeRecord || (dist !== undefined && dist <= (OFFICE_CONFIG.radiusMeters || 100))
-                ? `<span style="color:#16a34a; font-weight:700;">🟢 0m (In Office)</span>`
-                : (dist !== undefined && dist !== null && !isNaN(dist)
-                    ? `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`
-                    : `<span style="color:#16a34a; font-weight:700;">🟢 In Office</span>`));
+            : (isHomeRecord
+                ? `<span style="color:#10b981; font-weight:700;">🏠 Work From Home</span>`
+                : (isAtOfficeRecord || (dist !== undefined && dist <= (OFFICE_CONFIG.radiusMeters || 100))
+                    ? `<span style="color:#16a34a; font-weight:700;">🟢 0m (In Office)</span>`
+                    : (dist !== undefined && dist !== null && !isNaN(dist)
+                        ? `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`
+                        : `<span style="color:#16a34a; font-weight:700;">🟢 In Office</span>`)));
 
-          const inImgUrl = x.imageUrl;
-          const outImgUrl = x.punchOutImageUrl;
+          const inImgUrl = x.imageUrl || x.selfie;
+          const outImgUrl = x.punchOutImageUrl || x.punchOutSelfie;
 
           let selfiesHtml = '';
           if (inImgUrl && !isAbsent) {
@@ -3055,6 +3195,10 @@
             ? `<br><a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}" style="color:#2563eb; font-size:11px; text-decoration:none;">📍 Map View</a>`
             : '';
 
+          const addrDisplay = (!isAbsent && x.location?.address) 
+            ? `<div style="font-size:11px; color:#475569; margin-top:3px; max-width:180px; word-break:break-word;">📍 ${escapeHtml(x.location.address)}</div>`
+            : '';
+
           return `<tr>
             <td>
               <strong style="font-size:13px; color:#0f172a;">${escapeHtml(x.empName || 'Employee')}</strong>
@@ -3067,6 +3211,7 @@
             <td>${statusBadge}</td>
             <td>
               ${distStr}
+              ${addrDisplay}
               ${mapLink}
             </td>
             <td>
@@ -3118,9 +3263,9 @@
       } else {
         const win = evaluateCurrentPunchWindow();
         if (!win.allowed) {
-          badgeEl.innerHTML = `<span style="color:#dc2626; background:#fef2f2; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-weight:700;">⛔ Punch In Blocked (1:30 PM par open hoga)</span>`;
+          badgeEl.innerHTML = `<span style="color:#dc2626; background:#fef2f2; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-weight:700;">⛔ Half Day Lag Gaya (01:20 PM par open hoga, warna Absent)</span>`;
         } else if (win.isHalfDay) {
-          badgeEl.innerHTML = `<span style="color:#d97706; background:#fffbeb; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:700;">⚠️ Punch In Open (Half Day lagega)</span>`;
+          badgeEl.innerHTML = `<span style="color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-weight:700;">❌ Absent (01:20 PM tak punch in nahi kiya! Abhi punch karein to Half Day)</span>`;
         } else {
           badgeEl.innerHTML = `<span style="color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 8px; border-radius:6px; font-weight:600;">⚪ Not Punched In Today</span>`;
         }

@@ -10,7 +10,7 @@ const SSO_SHARED_SECRET = process.env.SSO_SHARED_SECRET || 'advmen_sso_shared_se
 const CRM_FRONTEND_URL = (process.env.CRM_FRONTEND_URL || 'https://advmen-crm-frontend.vercel.app').replace(/\/+$/, '');
 const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
 
-// Helper: Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+// Helper: Check 10:05 AM Cutoff & 01:20 PM Half Day Timing Rule in Asia/Kolkata
 function evaluatePunchInWindow(date = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
@@ -28,23 +28,23 @@ function evaluatePunchInWindow(date = new Date()) {
       return { allowed: true, status: 'Present', isHalfDay: false };
     }
 
-    // Window 2: Between 10:05 AM and 1:30 PM -> Blocked
-    if (totalMinutes < 810) {
+    // Window 2: Between 10:05 AM and 01:20 PM (606 to 799 minutes) -> Blocked
+    if (totalMinutes < 800) {
       return {
         allowed: false,
         blockedUntilHalfDay: true,
         status: 'Absent',
-        nextAllowedTime: '1:30 PM',
-        message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+        nextAllowedTime: '01:20 PM',
+        message: 'Aapka Half Day lag gaya hai! Subah 10:05 AM ke baad Punch In band hai. Ab punch in 01:20 PM par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!'
       };
     }
 
-    // Window 3: 1:30 PM onwards -> Allowed, Half Day
+    // Window 3: 01:20 PM onwards (>= 800 minutes) -> Allowed, Half Day
     return {
       allowed: true,
       status: 'Half Day',
       isHalfDay: true,
-      message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+      message: 'Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai (10:05 AM cutoff exceed hone par).'
     };
   } catch (e) {
     return { allowed: true, status: 'Present', isHalfDay: false };
@@ -312,7 +312,7 @@ router.post('/login', async (req, res) => {
     if (!timeRule.allowed) {
       notificationMessage = timeRule.message;
     } else if (timeRule.isHalfDay) {
-      notificationMessage = 'Aap 1:30 PM ke baad login / punch kar rahe hain. Aapka Half Day lag gaya hai!';
+      notificationMessage = 'Aap 01:20 PM ke baad login / punch kar rahe hain. Aapka Half Day lag gaya hai!';
     }
 
     // --- SAVE ATTENDANCE TO DATABASE ON LOGIN ONLY IF ALLOWED ---
@@ -355,7 +355,7 @@ router.post('/login', async (req, res) => {
             organizationId: user.organizationId || 'org_advmen_platform',
             status: timeRule.status,
             isHalfDay: timeRule.isHalfDay,
-            halfDayReason: timeRule.isHalfDay ? 'Login at/after 1:30 PM (after 10:05 AM cutoff)' : '',
+            halfDayReason: timeRule.isHalfDay ? 'Login at/after 01:20 PM (after 10:05 AM cutoff)' : '',
             halfDayNotificationSent: timeRule.isHalfDay,
             punchIn: now,
             punchOut: null,
@@ -377,7 +377,7 @@ router.post('/login', async (req, res) => {
           if (timeRule.isHalfDay && !savedAttendanceRecord.isHalfDay) {
             savedAttendanceRecord.isHalfDay = true;
             savedAttendanceRecord.status = 'Half Day';
-            savedAttendanceRecord.halfDayReason = 'Login at/after 1:30 PM (after 10:05 AM cutoff)';
+            savedAttendanceRecord.halfDayReason = 'Login at/after 01:20 PM (after 10:05 AM cutoff)';
             await savedAttendanceRecord.save();
           }
         }

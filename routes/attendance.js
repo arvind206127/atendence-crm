@@ -167,7 +167,7 @@ function getISTDayRange(dateObj = new Date()) {
   }
 }
 
-// Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+// Check 10:05 AM Cutoff & 01:20 PM Half Day Timing Rule in Asia/Kolkata
 function evaluatePunchInWindow(date = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
@@ -191,25 +191,25 @@ function evaluatePunchInWindow(date = new Date()) {
       };
     }
 
-    // Window 2: Between 10:05 AM and 1:30 PM (606 to 809 minutes) -> BLOCKED
-    if (totalMinutes < 810) {
+    // Window 2: Between 10:05 AM and 01:20 PM (606 to 799 minutes) -> BLOCKED
+    if (totalMinutes < 800) {
       return {
         allowed: false,
         blockedUntilHalfDay: true,
         status: 'Absent',
         window: 'morning_blocked',
-        nextAllowedTime: '1:30 PM',
-        message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+        nextAllowedTime: '01:20 PM',
+        message: 'Aapka Half Day lag gaya hai! Subah 10:05 AM ke baad Punch In band hai. Ab punch in 01:20 PM par karein. Agar 01:20 PM par bhi punch in nahi kiya to Absent lagega!'
       };
     }
 
-    // Window 3: 1:30 PM onwards (>= 810 minutes) -> Allowed, Half Day
+    // Window 3: 01:20 PM onwards (>= 800 minutes) -> Allowed, Half Day
     return {
       allowed: true,
       status: 'Half Day',
       isHalfDay: true,
       window: 'afternoon_half_day',
-      message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+      message: 'Aapka Half Day lag gaya hai! Aapne 01:20 PM par punch in kiya hai (10:05 AM cutoff exceed hone par).'
     };
   } catch (e) {
     return { allowed: true, status: 'Present', isHalfDay: false };
@@ -230,7 +230,7 @@ router.get('/office-config', (req, res) => {
     gpsMaxAccuracyMeters: GPS_MAX_ACCURACY_METERS,
     timezone: ATTENDANCE_TIMEZONE,
     halfDayCutoff: '10:05 AM',
-    lunchTime: '1:30 PM'
+    lunchTime: '01:20 PM'
   });
 });
 
@@ -350,7 +350,7 @@ router.post(['/submit', '/punch-in'], async (req, res) => {
       }
     }
 
-    // Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule
+    // Check 10:05 AM Cutoff & 01:20 PM Half Day Timing Rule
     let now = new Date();
     if (req.body.testSimulatedTime) {
       const customD = new Date(req.body.testSimulatedTime);
@@ -361,7 +361,7 @@ router.post(['/submit', '/punch-in'], async (req, res) => {
 
     const timeRule = evaluatePunchInWindow(now);
 
-    // If between 10:05 AM and 1:30 PM: BLOCKED!
+    // If between 10:05 AM and 01:20 PM: BLOCKED!
     if (!timeRule.allowed && !req.body.bypassTimeRule) {
       return res.status(400).json({
         success: false,
@@ -394,11 +394,12 @@ router.post(['/submit', '/punch-in'], async (req, res) => {
     const loginTimeStr = formatCleanISTTime(now);
 
     const savedLocation = {
-      address: location.address || 'Office Location',
+      address: location.address || (isHome ? 'Home Location' : 'Office Location'),
       lat: userLat,
       lng: userLng,
       accuracy: userAccuracy,
-      distanceMeters: distanceMeters
+      distanceMeters: isHome ? 0 : distanceMeters,
+      isHome: Boolean(isHome)
     };
 
     const userOrgId = req.body?.organizationId || (user && user.organizationId) || 'org_advmen_platform';
@@ -441,7 +442,7 @@ router.post(['/submit', '/punch-in'], async (req, res) => {
         organizationId: userOrgId,
         status: calculatedStatus,
         isHalfDay: isHalfDay,
-        halfDayReason: isHalfDay ? 'Punched in at/after 1:30 PM (Morning cutoff 10:05 AM exceeded)' : '',
+        halfDayReason: isHalfDay ? 'Punched in at/after 01:20 PM (Morning cutoff 10:05 AM exceeded)' : '',
         halfDayNotificationSent: isHalfDay,
         location: savedLocation,
         selfie: finalSelfie,
@@ -460,7 +461,7 @@ router.post(['/submit', '/punch-in'], async (req, res) => {
       record.name = finalEmpName;
       if (!record.date) record.date = istDateStr;
       if (user && !record.userId) record.userId = user._id.toString();
-      if (isHalfDay) record.halfDayReason = 'Punched in at/after 1:30 PM (Morning cutoff 10:05 AM exceeded)';
+      if (isHalfDay) record.halfDayReason = 'Punched in at/after 01:20 PM (Morning cutoff 10:05 AM exceeded)';
       record.location = savedLocation;
       if (finalSelfie) record.selfie = finalSelfie;
       if (imageRelativePath) record.imageUrl = imageRelativePath;
@@ -704,11 +705,12 @@ router.post('/punch-out', async (req, res) => {
     }
 
     const savedLogoutLocation = {
-      address: location.address || 'Office Location',
+      address: location?.address || (isHome ? 'Home Location' : 'Office Location'),
       lat: userLat,
       lng: userLng,
       accuracy: userAccuracy,
-      distanceMeters: distanceMeters
+      distanceMeters: isHome ? 0 : distanceMeters,
+      isHome: Boolean(isHome)
     };
 
     const userOrgId = req.body?.organizationId || (user && user.organizationId) || 'org_advmen_platform';
@@ -1745,7 +1747,8 @@ function consolidateDailyRecords(records = [], arg2 = '', arg3 = '') {
           lat: lat,
           lng: lng,
           accuracy: r.location?.accuracy,
-          distanceMeters: finalInDist,
+          distanceMeters: r.location?.isHome ? 0 : finalInDist,
+          isHome: Boolean(r.location?.isHome),
           googleMapsUrl: (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null
         },
         logoutLocation: r.logoutLocation ? {
@@ -1753,7 +1756,8 @@ function consolidateDailyRecords(records = [], arg2 = '', arg3 = '') {
           lat: outLat,
           lng: outLng,
           accuracy: r.logoutLocation.accuracy,
-          distanceMeters: finalOutDist,
+          distanceMeters: r.logoutLocation?.isHome ? 0 : finalOutDist,
+          isHome: Boolean(r.logoutLocation?.isHome),
           googleMapsUrl: (outLat && outLng) ? `https://www.google.com/maps?q=${outLat},${outLng}` : null
         } : null,
         imageUrl: `/api/attendance/image/${r._id}`,
