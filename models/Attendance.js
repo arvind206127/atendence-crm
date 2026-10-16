@@ -142,4 +142,41 @@ const attendanceSchema = new mongoose.Schema({
 attendanceSchema.index({ createdAt: -1 });
 attendanceSchema.index({ empId: 1, createdAt: -1 });
 
+// Helper to safely sync documents to the 'attendance' (singular) collection as well
+async function syncToAttendanceCollection(doc) {
+  try {
+    if (mongoose.connection && mongoose.connection.readyState === 1 && doc && doc._id) {
+      const cleanDoc = doc.toObject ? doc.toObject() : { ...doc };
+      await mongoose.connection.db.collection('attendance').updateOne(
+        { _id: cleanDoc._id },
+        { $set: cleanDoc },
+        { upsert: true }
+      );
+    }
+  } catch (err) {
+    console.warn('Sync to attendance collection note:', err.message);
+  }
+}
+
+// Post-save hook
+attendanceSchema.post('save', async function (doc) {
+  try {
+    await syncToAttendanceCollection(doc);
+  } catch (err) {}
+});
+
+// Post findOneAndUpdate / updateOne hook
+attendanceSchema.post(['findOneAndUpdate', 'updateOne'], async function () {
+  try {
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      const query = this.getQuery();
+      const updated = await mongoose.model('Attendance').findOne(query).lean();
+      if (updated) {
+        await syncToAttendanceCollection(updated);
+      }
+    }
+  } catch (err) {}
+});
+
 module.exports = mongoose.model('Attendance', attendanceSchema);
+module.exports.syncToAttendanceCollection = syncToAttendanceCollection;

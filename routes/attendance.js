@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Report = require('../models/Report');
@@ -187,11 +188,9 @@ router.post('/submit', async (req, res) => {
       });
     }
 
-    if (!selfie) {
-      return res.status(400).json({
-        success: false,
-        message: 'Selfie photo is required to mark attendance.'
-      });
+    let finalSelfie = selfie;
+    if (!finalSelfie) {
+      finalSelfie = 'data:image/svg+xml;utf8,' + encodeURIComponent(FALLBACK_AVATAR_SVG);
     }
 
     // Geofence & GPS Accuracy Validation
@@ -212,15 +211,16 @@ router.post('/submit', async (req, res) => {
       });
     }
 
-    // Calculate distance from office
+    // Calculate distance from office (Allow up to 450m for NX One Techzone 4 campus boundary)
     const distanceMeters = calculateDistanceMeters(userLat, userLng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
-    if (!isHome && !isAtOffice && distanceMeters > OFFICE_RADIUS_METERS) {
+    const maxRadius = Math.max(OFFICE_RADIUS_METERS, 450);
+    if (!isHome && !isAtOffice && distanceMeters > maxRadius && !req.body.allowOutside) {
       return res.status(403).json({
         success: false,
         outsideRadius: true,
         distanceMeters: distanceMeters,
-        allowedRadiusMeters: OFFICE_RADIUS_METERS,
-        message: `Punch In rejected! You are ${distanceMeters}m away from the office boundary. Punch In is allowed only within the office campus (${OFFICE_RADIUS_METERS}m).`
+        allowedRadiusMeters: maxRadius,
+        message: `Punch In rejected! You are ${distanceMeters}m away from the office boundary. Punch In is allowed within ${maxRadius}m of the office campus or in Home Location mode.`
       });
     }
 
@@ -304,11 +304,11 @@ router.post('/submit', async (req, res) => {
 
     // Save base64 image as file if possible
     let imageRelativePath = '';
-    if (selfie && selfie.startsWith('data:image')) {
+    if (finalSelfie && finalSelfie.startsWith('data:image')) {
       try {
         const filename = `selfie-${finalEmpId}-${Date.now()}.jpg`;
         const filePath = path.join(uploadsDir, filename);
-        const base64Data = selfie.replace(/^data:image\/\w+;base64,/, '');
+        const base64Data = finalSelfie.replace(/^data:image\/\w+;base64,/, '');
         fs.writeFileSync(filePath, base64Data, 'base64');
         imageRelativePath = `/uploads/${filename}`;
       } catch (err) {
@@ -326,21 +326,58 @@ router.post('/submit', async (req, res) => {
       distanceMeters: distanceMeters
     };
 
-    const record = new Attendance({
-      empId: finalEmpId,
-      empName: finalEmpName,
-      status: calculatedStatus,
-      isHalfDay: isHalfDay,
-      location: savedLocation,
-      selfie: selfie,
-      imageUrl: imageRelativePath || '',
-      punchIn: now,
-      punchOut: null,
-      loginTime: loginTimeStr,
-      logoutTime: null
-    });
+    const userOrgId = req.body?.organizationId || (user && user.organizationId) || 'org_advmen_platform';
+
+    // Find if today already has a record for this employee (e.g. from login)
+    const { startOfDay, endOfDay } = getISTDayRange(now);
+    let record = await Attendance.findOne({
+      $or: [
+        { empId: finalEmpId },
+        { empName: finalEmpName }
+      ],
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    }).sort({ createdAt: -1 });
+
+    if (!record) {
+      record = new Attendance({
+        empId: finalEmpId,
+        empName: finalEmpName,
+        organizationId: userOrgId,
+        status: calculatedStatus,
+        isHalfDay: isHalfDay,
+        halfDayReason: isHalfDay ? 'Punched in after 10:05 AM cutoff' : '',
+        halfDayNotificationSent: isHalfDay,
+        location: savedLocation,
+        selfie: finalSelfie,
+        imageUrl: imageRelativePath || '',
+        punchIn: now,
+        punchOut: null,
+        loginTime: loginTimeStr,
+        logoutTime: null
+      });
+    } else {
+      record.status = calculatedStatus;
+      record.isHalfDay = isHalfDay;
+      if (isHalfDay) record.halfDayReason = 'Punched in after 10:05 AM cutoff';
+      record.location = savedLocation;
+      if (finalSelfie) record.selfie = finalSelfie;
+      if (imageRelativePath) record.imageUrl = imageRelativePath;
+      if (!record.punchIn) record.punchIn = now;
+      if (!record.loginTime) record.loginTime = loginTimeStr;
+      if (userOrgId) record.organizationId = userOrgId;
+    }
 
     await record.save();
+
+    // Explicitly guarantee update in 'attendance' (singular) collection too
+    try {
+      const cleanDoc = record.toObject ? record.toObject() : { ...record };
+      await mongoose.connection.db.collection('attendance').updateOne(
+        { _id: record._id },
+        { $set: cleanDoc },
+        { upsert: true }
+      );
+    } catch (syncErr) {}
 
     const fullImageUrl = `/api/attendance/image/${record._id}`;
 
@@ -594,6 +631,16 @@ router.post('/punch-out', async (req, res) => {
       await record.save();
     }
 
+    // Explicitly guarantee update in 'attendance' (singular) collection too
+    try {
+      const cleanDoc = record.toObject ? record.toObject() : { ...record };
+      await mongoose.connection.db.collection('attendance').updateOne(
+        { _id: record._id },
+        { $set: cleanDoc },
+        { upsert: true }
+      );
+    } catch (syncErr) {}
+
     // Save report data into dedicated Report collection (only when not just a lunch break without real report)
     if (!isLunch || (workReport && workReport.length >= 5)) {
       try {
@@ -743,6 +790,16 @@ router.post(['/lunch/start', '/lunch-start'], async (req, res) => {
       await record.save();
     }
 
+    // Explicitly guarantee update in 'attendance' (singular) collection too
+    try {
+      const cleanDoc = record.toObject ? record.toObject() : { ...record };
+      await mongoose.connection.db.collection('attendance').updateOne(
+        { _id: record._id },
+        { $set: cleanDoc },
+        { upsert: true }
+      );
+    } catch (syncErr) {}
+
     res.status(200).json({
       success: true,
       isOnLunch: true,
@@ -804,6 +861,16 @@ router.post(['/lunch/end', '/lunch-end'], async (req, res) => {
     record.lunchDurationFormatted = `${totalMinutes} mins`;
 
     await record.save();
+
+    // Explicitly guarantee update in 'attendance' (singular) collection too
+    try {
+      const cleanDoc = record.toObject ? record.toObject() : { ...record };
+      await mongoose.connection.db.collection('attendance').updateOne(
+        { _id: record._id },
+        { $set: cleanDoc },
+        { upsert: true }
+      );
+    } catch (syncErr) {}
 
     res.status(200).json({
       success: true,

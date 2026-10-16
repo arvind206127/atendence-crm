@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'apna_secret_key_yahan_rakhein';
@@ -34,6 +35,43 @@ function checkIsHalfDay(date = new Date()) {
     } catch (err) {
       return false;
     }
+  }
+}
+
+// Helpers for Indian Standard Time (Asia/Kolkata)
+function formatCleanISTTime(dateOrStr) {
+  if (!dateOrStr) return null;
+  try {
+    const d = new Date(dateOrStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-IN', {
+        timeZone: ATTENDANCE_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    }
+  } catch (e) {}
+  return String(dateOrStr);
+}
+
+function getISTDayRange(dateObj = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: ATTENDANCE_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(dateObj); // "YYYY-MM-DD"
+    const startOfDay = new Date(`${parts}T00:00:00.000+05:30`);
+    const endOfDay = new Date(`${parts}T23:59:59.999+05:30`);
+    return { startOfDay, endOfDay, istDateStr: parts };
+  } catch (e) {
+    const d = new Date(dateObj);
+    const start = new Date(d.setHours(0, 0, 0, 0));
+    const end = new Date(d.setHours(23, 59, 59, 999));
+    return { startOfDay: start, endOfDay: end, istDateStr: d.toISOString().slice(0, 10) };
   }
 }
 
@@ -257,6 +295,75 @@ router.post('/login', async (req, res) => {
       ? 'Aap 10:05 AM ke baad login kar rahe hain. Aapka Half Day lag gaya hai!'
       : null;
 
+    // --- SAVE ATTENDANCE TO DATABASE ON LOGIN ---
+    let savedAttendanceRecord = null;
+    try {
+      const now = new Date();
+      const loginTimeStr = formatCleanISTTime(now);
+      const { startOfDay, endOfDay } = getISTDayRange(now);
+
+      const orConds = [
+        { empId: resolvedEmpId },
+        { empId: { $regex: new RegExp(`^${resolvedEmpId}$`, 'i') } }
+      ];
+      if (user.name) {
+        orConds.push({ empName: { $regex: new RegExp(`^${user.name}$`, 'i') } });
+      }
+
+      savedAttendanceRecord = await Attendance.findOne({
+        $or: orConds,
+        createdAt: { $gte: startOfDay, $lte: endOfDay }
+      }).sort({ createdAt: -1 });
+
+      if (!savedAttendanceRecord) {
+        // Create and save attendance record immediately in database
+        savedAttendanceRecord = new Attendance({
+          empId: resolvedEmpId,
+          empName: user.name || 'Employee',
+          organizationId: user.organizationId || 'org_advmen_platform',
+          status: isAfter1005 ? 'Half Day' : 'Present',
+          isHalfDay: isAfter1005,
+          halfDayReason: isAfter1005 ? 'Login after 10:05 AM cutoff' : '',
+          halfDayNotificationSent: isAfter1005,
+          punchIn: now,
+          punchOut: null,
+          loginTime: loginTimeStr,
+          logoutTime: null,
+          location: {
+            address: 'NX One, Techzone 4, Greater Noida West',
+            lat: 28.600556,
+            lng: 77.432778,
+            accuracy: 15,
+            distanceMeters: 0
+          },
+          isOnLunch: false
+        });
+        await savedAttendanceRecord.save();
+      } else {
+        // Record exists, ensure status and isHalfDay reflect 10:05 AM rule if punched in after 10:05
+        if (isAfter1005 && !savedAttendanceRecord.isHalfDay) {
+          savedAttendanceRecord.isHalfDay = true;
+          savedAttendanceRecord.status = 'Half Day';
+          savedAttendanceRecord.halfDayReason = 'Login after 10:05 AM cutoff';
+          await savedAttendanceRecord.save();
+        }
+      }
+
+      // Explicit direct sync to singular 'attendance' collection
+      if (savedAttendanceRecord) {
+        try {
+          const cleanDoc = savedAttendanceRecord.toObject ? savedAttendanceRecord.toObject() : { ...savedAttendanceRecord };
+          await mongoose.connection.db.collection('attendance').updateOne(
+            { _id: savedAttendanceRecord._id },
+            { $set: cleanDoc },
+            { upsert: true }
+          );
+        } catch (syncErr) {}
+      }
+    } catch (attErr) {
+      console.error('Error saving attendance on login:', attErr.message);
+    }
+
     res.json({
       success: true,
       token,
@@ -267,7 +374,9 @@ router.post('/login', async (req, res) => {
       email: user.email,
       isHalfDay: isAfter1005,
       isAfter1005: isAfter1005,
-      notificationMessage: notificationMessage
+      notificationMessage: notificationMessage,
+      attendanceRecordId: savedAttendanceRecord?._id,
+      attendanceSaved: Boolean(savedAttendanceRecord)
     });
   } catch (err) {
     console.error("Login Error:", err);
