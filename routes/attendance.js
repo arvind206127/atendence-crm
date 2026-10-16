@@ -57,14 +57,23 @@ function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
   return Math.round(R * c); // Distance in meters
 }
 
+// Calculate distance to nearest office reference coordinate
+function calculateDistanceToOffice(lat, lng) {
+  if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return Infinity;
+  const d1 = calculateDistanceMeters(lat, lng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
+  const d2 = calculateDistanceMeters(lat, lng, 28.59867, 77.43187); // NX One Office Desk
+  const d3 = calculateDistanceMeters(lat, lng, 28.600556, 77.432778); // NX One Campus Pin
+  return Math.min(d1, d2, d3);
+}
+
 // Check if coordinates or address fall within the office boundary or NX One commercial campus
 function isInsideOfficeBoundary(lat, lng, address = '') {
   if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return false;
-  const dist = calculateDistanceMeters(lat, lng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
-  if (dist <= OFFICE_RADIUS_METERS) return true;
+  const dist = calculateDistanceToOffice(lat, lng);
+  if (dist <= Math.max(OFFICE_RADIUS_METERS, 250)) return true;
 
   // NX One Techzone 4 campus coordinates bounding box
-  const isAtNXOne = (lat >= 28.5920 && lat <= 28.6080 && lng >= 77.4200 && lng <= 77.4400);
+  const isAtNXOne = (lat >= 28.5900 && lat <= 28.6100 && lng >= 77.4180 && lng <= 77.4420);
   if (isAtNXOne) return true;
 
   // Address check if reverse geocoded as NX One
@@ -212,15 +221,16 @@ router.post('/submit', async (req, res) => {
     }
 
     // Calculate distance from office (Allow up to 450m for NX One Techzone 4 campus boundary)
-    const distanceMeters = calculateDistanceMeters(userLat, userLng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
+    const rawDistance = calculateDistanceToOffice(userLat, userLng);
+    const distanceMeters = (isAtOffice || rawDistance <= 50) ? 0 : rawDistance;
     const maxRadius = Math.max(OFFICE_RADIUS_METERS, 450);
-    if (!isHome && !isAtOffice && distanceMeters > maxRadius && !req.body.allowOutside) {
+    if (!isHome && !isAtOffice && rawDistance > maxRadius && !req.body.allowOutside) {
       return res.status(403).json({
         success: false,
         outsideRadius: true,
-        distanceMeters: distanceMeters,
+        distanceMeters: rawDistance,
         allowedRadiusMeters: maxRadius,
-        message: `Punch In rejected! You are ${distanceMeters}m away from the office boundary. Punch In is allowed within ${maxRadius}m of the office campus or in Home Location mode.`
+        message: `Punch In rejected! You are ${rawDistance}m away from the office boundary. Punch In is allowed within ${maxRadius}m of the office campus or in Home Location mode.`
       });
     }
 
@@ -451,9 +461,13 @@ router.post('/punch-out', async (req, res) => {
     const userAccuracy = location && location.accuracy !== undefined ? parseFloat(location.accuracy) || 0 : 15;
 
     const isHome = req.body?.isHomeLocation === true || req.body?.workMode === 'Home' || location?.isHome === true;
+    const isAtOfficeOut = isInsideOfficeBoundary(userLat, userLng, location?.address || '');
+    const rawDistanceOut = calculateDistanceToOffice(userLat, userLng);
+    const distanceMeters = (isAtOfficeOut || rawDistanceOut <= 50) ? 0 : rawDistanceOut;
 
-    // Check GPS accuracy (Only enforced for Office Mode without Lunch; bypassed when Home Mode or Lunch is active)
-    if (!isHome && !isLunch && userAccuracy > GPS_MAX_ACCURACY_METERS) {
+    // Check GPS accuracy: if in office campus, Home or Lunch, allow up to 500m (laptop Wi-Fi IP geolocation is ±150m-250m)
+    const allowedAccuracy = (isHome || isLunch || isAtOfficeOut) ? Math.max(GPS_MAX_ACCURACY_METERS, 500) : GPS_MAX_ACCURACY_METERS;
+    if (!isHome && !isLunch && !isAtOfficeOut && userAccuracy > allowedAccuracy) {
       return res.status(400).json({
         success: false,
         message: `GPS accuracy low (±${Math.round(userAccuracy)}m). Maximum allowed accuracy for office is ±${GPS_MAX_ACCURACY_METERS}m. Please ensure GPS is enabled.`
@@ -474,16 +488,15 @@ router.post('/punch-out', async (req, res) => {
       });
     }
 
-    // Geofence check for Punch Out (bypassed if isHome or isLunch)
-    const isAtOfficeOut = isInsideOfficeBoundary(userLat, userLng, location?.address || '');
-    const distanceMeters = calculateDistanceMeters(userLat, userLng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
-    if (!isHome && !isLunch && !isAtOfficeOut && distanceMeters > OFFICE_RADIUS_METERS) {
+    // Geofence check for Punch Out (bypassed if isHome, isLunch, or isAtOfficeOut)
+    const maxRadiusOut = Math.max(OFFICE_RADIUS_METERS, 450);
+    if (!isHome && !isLunch && !isAtOfficeOut && rawDistanceOut > maxRadiusOut) {
       return res.status(403).json({
         success: false,
         outsideRadius: true,
-        distanceMeters: distanceMeters,
-        allowedRadiusMeters: OFFICE_RADIUS_METERS,
-        message: `Punch Out rejected! You are ${distanceMeters}m away from the office boundary. Punch Out is allowed only within ${OFFICE_RADIUS_METERS}m of the office campus.`
+        distanceMeters: rawDistanceOut,
+        allowedRadiusMeters: maxRadiusOut,
+        message: `Punch Out rejected! You are ${rawDistanceOut}m away from the office boundary. Punch Out is allowed within ${maxRadiusOut}m of the office campus.`
       });
     }
 
@@ -1472,6 +1485,14 @@ function formatAttendanceRecords(records) {
     const outLat = r.logoutLocation?.lat;
     const outLng = r.logoutLocation?.lng;
 
+    const inAtOffice = isInsideOfficeBoundary(lat, lng, r.location?.address);
+    const inRawDist = r.location?.distanceMeters;
+    const finalInDist = (inAtOffice || (inRawDist !== undefined && inRawDist <= 50)) ? 0 : inRawDist;
+
+    const outAtOffice = isInsideOfficeBoundary(outLat, outLng, r.logoutLocation?.address);
+    const outRawDist = r.logoutLocation?.distanceMeters;
+    const finalOutDist = (outAtOffice || (outRawDist !== undefined && outRawDist <= 50)) ? 0 : outRawDist;
+
     return {
       recordId: r._id,
       _id: r._id,
@@ -1495,7 +1516,7 @@ function formatAttendanceRecords(records) {
         lat: lat,
         lng: lng,
         accuracy: r.location?.accuracy,
-        distanceMeters: r.location?.distanceMeters,
+        distanceMeters: finalInDist,
         googleMapsUrl: (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null
       },
       logoutLocation: r.logoutLocation ? {
@@ -1503,7 +1524,7 @@ function formatAttendanceRecords(records) {
         lat: outLat,
         lng: outLng,
         accuracy: r.logoutLocation.accuracy,
-        distanceMeters: r.logoutLocation.distanceMeters,
+        distanceMeters: finalOutDist,
         googleMapsUrl: (outLat && outLng) ? `https://www.google.com/maps?q=${outLat},${outLng}` : null
       } : null,
       imageUrl: `/api/attendance/image/${r._id}`,

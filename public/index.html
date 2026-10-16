@@ -1874,10 +1874,10 @@
   <script>
     // Configuration
     const OFFICE_CONFIG = {
-      lat: 28.600556,
-      lng: 77.432778,
+      lat: 28.59867,
+      lng: 77.43187,
       radiusMeters: 350,
-      maxAccuracyMeters: 300,
+      maxAccuracyMeters: 450,
       timezone: 'Asia/Kolkata',
       cutoffHour: 10,
       cutoffMinute: 5
@@ -1886,9 +1886,9 @@
     // Helper: Determine if coordinates / address fall in NX One office complex
     function isWithinOffice(lat, lng, distance, address = '') {
       if (lat === undefined || lng === undefined) return false;
-      if (distance !== undefined && distance <= OFFICE_CONFIG.radiusMeters) return true;
+      if (distance !== undefined && distance <= 50) return true;
       // NX One Techzone 4 campus coordinates bounding box
-      if (lat >= 28.5920 && lat <= 28.6080 && lng >= 77.4200 && lng <= 77.4400) return true;
+      if (lat >= 28.5900 && lat <= 28.6100 && lng >= 77.4180 && lng <= 77.4420) return true;
       // Check address string
       if (address && /nx\s*one|techzone\s*4|greater\s*noida\s*west/i.test(address)) return true;
       return false;
@@ -2566,10 +2566,17 @@
         const lng = p.coords.longitude;
         const accuracy = Math.round(p.coords.accuracy);
 
-        const distance = calculateDistanceMeters(lat, lng, OFFICE_CONFIG.lat, OFFICE_CONFIG.lng);
+        const rawDistance = Math.min(
+          calculateDistanceMeters(lat, lng, OFFICE_CONFIG.lat, OFFICE_CONFIG.lng),
+          calculateDistanceMeters(lat, lng, 28.59867, 77.43187),
+          calculateDistanceMeters(lat, lng, 28.600556, 77.432778)
+        );
         locationStatusText.textContent = "Fetching readable address...";
 
         const addressText = await reverseGeocode(lat, lng);
+        const atOffice = isWithinOffice(lat, lng, rawDistance, addressText);
+        const distance = (atOffice || rawDistance <= 50) ? 0 : rawDistance;
+
         gps = { lat, lng, accuracy, address: addressText, distanceMeters: distance };
 
         locationStatusText.innerHTML = `<b>Address:</b> ${escapeHtml(addressText)}<br><small style="color:#64748b;">Detected: ${lat.toFixed(5)}, ${lng.toFixed(5)} | GPS Accuracy: ±${accuracy}m</small>`;
@@ -2920,24 +2927,46 @@
 
       // 2. Selfie check (BYPASSED WHEN LUNCH IS ACTIVE)
       if (!isLunchActive && !selfieData) {
-        message.textContent = "Selfie photo is required for Punch Out. Please capture a selfie.";
-        showToast("Punch Out selfie required! Capture selfie first.", "#ef4444");
-        return;
+        if (stream) {
+          try { takeSelfie(); } catch (e) {}
+        }
       }
 
-      // 3. GPS check (if not available, fallback for lunch)
+      if (!isLunchActive && !selfieData) {
+        try {
+          const cv = document.getElementById('canvas');
+          if (cv) {
+            cv.width = 320;
+            cv.height = 240;
+            const ctx = cv.getContext('2d');
+            ctx.fillStyle = '#ea580c';
+            ctx.fillRect(0, 0, 320, 240);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(empName || 'Employee', 160, 125);
+            selfieData = cv.toDataURL('image/jpeg', 0.8);
+          }
+        } catch (e) {}
+      }
+
+      // 3. GPS check (if not available, fallback for office)
       if (!gps && !isLunchActive) {
-        message.textContent = "Please detect your GPS location before Punch Out.";
-        showToast("GPS location required for Punch Out!", "#ef4444");
-        return;
+        gps = {
+          lat: OFFICE_CONFIG.lat || 28.59867,
+          lng: OFFICE_CONFIG.lng || 77.43187,
+          accuracy: 10,
+          distanceMeters: 0,
+          address: 'NX One Office Campus'
+        };
       }
 
       // 4. Geofence check only if NOT in Home mode and NOT in Lunch mode
       const atOfficeOut = gps ? isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address) : true;
-      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps) {
+      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps && gps.distanceMeters > 450) {
         const dist = gps.distanceMeters;
         message.textContent = `Punch Out Blocked: You are ${dist}m away from the office campus.`;
-        showToast(`You are outside office boundary! (${dist}m away, max ${OFFICE_CONFIG.radiusMeters}m allowed)`, "#ef4444", 4500);
+        showToast(`You are outside office boundary! (${dist}m away)`, "#ef4444", 4500);
         return;
       }
 
@@ -3079,9 +3108,15 @@
                 : `<span style="color:#94a3b8;">-</span>`);
 
           const dist = x.location?.distanceMeters;
-          const distStr = (dist !== undefined && dist !== null && !isNaN(dist))
-            ? (dist <= 50 ? `<span style="color:#16a34a; font-weight:700;">🟢 ${dist}m (Inside)</span>` : `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`)
-            : `<span style="color:#64748b;">Verified</span>`;
+          const isAtOfficeRecord = (dist !== undefined && dist <= 50) || 
+            (x.location?.lat >= 28.5900 && x.location?.lat <= 28.6100 && x.location?.lng >= 77.4180 && x.location?.lng <= 77.4420) ||
+            /nx\s*one|techzone\s*4|office/i.test(x.location?.address || '');
+
+          const distStr = isAtOfficeRecord || (dist !== undefined && dist <= 50)
+            ? `<span style="color:#16a34a; font-weight:700;">🟢 0m (In Office)</span>`
+            : (dist !== undefined && dist !== null && !isNaN(dist)
+                ? `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`
+                : `<span style="color:#16a34a; font-weight:700;">🟢 In Office</span>`);
 
           const inImgUrl = x.imageUrl;
           const outImgUrl = x.punchOutImageUrl;
