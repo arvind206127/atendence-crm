@@ -1886,11 +1886,12 @@
     // Helper: Determine if coordinates / address fall in NX One office complex
     function isWithinOffice(lat, lng, distance, address = '') {
       if (lat === undefined || lng === undefined) return false;
-      if (distance !== undefined && distance <= 50) return true;
+      // Wi-Fi GPS in office building / campus has up to 450-500m radius
+      if (distance !== undefined && distance <= 500) return true;
       // NX One Techzone 4 campus coordinates bounding box
-      if (lat >= 28.5900 && lat <= 28.6100 && lng >= 77.4180 && lng <= 77.4420) return true;
+      if (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500) return true;
       // Check address string
-      if (address && /nx\s*one|techzone\s*4|greater\s*noida\s*west/i.test(address)) return true;
+      if (address && /nx\s*one|techzone|greater\s*noida|noida\s*extension|bisrakh|gautam\s*buddha/i.test(address)) return true;
       return false;
     }
 
@@ -2284,6 +2285,11 @@
       checkEmployeeLunchStatus(cleanId);
 
       loadRecordsFromBackend();
+
+      // Pre-detect GPS location in background so punch in / out is instant
+      if (!gps) {
+        getLocation();
+      }
     }
 
     function toggleAuthMode() {
@@ -2520,33 +2526,25 @@
         return;
       }
 
-      canvas.width = video.videoWidth || 640; 
-      canvas.height = video.videoHeight || 480;
-      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-      selfieData = canvas.toDataURL("image/jpeg", 0.85);
+      // Resize to compact dimensions (360x270) for ultra-fast instant punch in / out
+      const targetW = 360;
+      const targetH = 270;
+      canvas.width = targetW; 
+      canvas.height = targetH;
+      canvas.getContext("2d").drawImage(video, 0, 0, targetW, targetH);
+      selfieData = canvas.toDataURL("image/jpeg", 0.65);
 
       preview.src = selfieData; 
       preview.style.display = "block";
-      message.textContent = "✓ Selfie captured! Now detect location to punch in or out.";
-      showToast("Selfie captured successfully! ✓", "#10b981", 2000);
+      message.textContent = "✓ Selfie captured! Now click punch in or out.";
+      showToast("Selfie captured! ✓", "#10b981", 1500);
     }
 
-    // --- REVERSE GEOCODING & LOCATION ---
+    // --- REVERSE GEOCODING & LOCATION (ULTRA FAST) ---
     async function reverseGeocode(lat, lng) {
-      const isAtNXOne = (lat >= 28.5950 && lat <= 28.6050 && lng >= 77.4250 && lng <= 77.4370);
-      if (isAtNXOne) {
+      if (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500) {
         return "NX One, Techzone 4, Greater Noida West, Uttar Pradesh";
       }
-
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        const data = await res.json();
-        if (data && data.display_name) return data.display_name;
-      } catch (e) {}
-
       return `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
     }
 
@@ -2575,7 +2573,7 @@
 
         const addressText = await reverseGeocode(lat, lng);
         const atOffice = isWithinOffice(lat, lng, rawDistance, addressText);
-        const distance = (atOffice || rawDistance <= 50) ? 0 : rawDistance;
+        const distance = (atOffice || rawDistance <= 500) ? 0 : rawDistance;
 
         gps = { lat, lng, accuracy, address: addressText, distanceMeters: distance };
 
@@ -2638,32 +2636,10 @@
       }
 
       if (!gps) {
-        // Auto-detect GPS if not yet clicked
-        try {
-          message.textContent = "Detecting GPS location for attendance...";
-          await new Promise((resolve) => {
-            if (!navigator.geolocation) return resolve();
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                const acc = Math.round(pos.coords.accuracy || 15);
-                const dist = calculateDistance(lat, lng, OFFICE_CONFIG.latitude, OFFICE_CONFIG.longitude);
-                gps = { lat, lng, accuracy: acc, distanceMeters: dist, address: 'Office Location' };
-                resolve();
-              },
-              () => resolve(),
-              { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-          });
-        } catch (e) {}
-      }
-
-      if (!gps) {
-        // Fallback to office coordinates if GPS blocked on desktop
+        // Instant fallback to office coordinates if GPS not yet detected
         gps = {
-          lat: OFFICE_CONFIG.latitude || 28.600556,
-          lng: OFFICE_CONFIG.longitude || 77.432778,
+          lat: OFFICE_CONFIG.lat || 28.59867,
+          lng: OFFICE_CONFIG.lng || 77.43187,
           accuracy: 10,
           distanceMeters: 0,
           address: 'NX One Office Campus'
@@ -2722,13 +2698,28 @@
             const notifMsg = result.notificationMessage || "Aap 10:05 AM ke baad punch kar rahe hain. Aapka Half Day lag gaya hai!";
             showHalfDayNotificationModal(notifMsg);
             message.textContent = `⚠️ Attendance saved in database as HALF DAY at ${result.loginTime || result.punchTime}!`;
-            showToast(`⚠️ Attendance Saved! ` + notifMsg, "#ea580c", 6000);
+            showToast(`⚠️ Attendance Saved! ` + notifMsg, "#ea580c", 5000);
           } else {
             message.textContent = `✓ Attendance saved in database! Marked PRESENT at ${result.loginTime || result.punchTime}!`;
-            showToast(`✅ Attendance saved in database successfully! (${result.loginTime})`, "#10b981", 4500);
+            showToast(`✅ Attendance saved successfully! (${result.loginTime})`, "#10b981", 3500);
           }
 
-          loadRecordsFromBackend();
+          // Instantly update local table record in memory for 0ms lag
+          if (result.data) {
+            const existingIdx = rawFetchedRecords.findIndex(r => 
+              (r._id && r._id === result.data._id) || 
+              (r.empId && String(r.empId).toUpperCase() === String(result.data.empId).toUpperCase())
+            );
+            if (existingIdx >= 0) {
+              rawFetchedRecords[existingIdx] = { ...rawFetchedRecords[existingIdx], ...result.data };
+            } else {
+              rawFetchedRecords.unshift(result.data);
+            }
+            filterLocalRecords();
+            updateEmployeeLiveStatus();
+          }
+
+          loadRecordsFromBackend(true);
         } else {
           message.textContent = result.message || "Punch In failed.";
           showToast(result.message || "Failed to mark attendance.", "#ef4444", 4500);
@@ -2963,7 +2954,7 @@
 
       // 4. Geofence check only if NOT in Home mode and NOT in Lunch mode
       const atOfficeOut = gps ? isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address) : true;
-      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps && gps.distanceMeters > 450) {
+      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps && gps.distanceMeters > 500) {
         const dist = gps.distanceMeters;
         message.textContent = `Punch Out Blocked: You are ${dist}m away from the office campus.`;
         showToast(`You are outside office boundary! (${dist}m away)`, "#ef4444", 4500);
@@ -3021,7 +3012,23 @@
             changesInput.value = '';
           }
 
-          loadRecordsFromBackend();
+          // Instantly update local table record in memory
+          const cleanOutTime = result.logoutTime || result.punchOutTime;
+          const targetId = result.empId || empId;
+          const foundIdx = rawFetchedRecords.findIndex(r => 
+            (r.empId && String(r.empId).toUpperCase() === String(targetId).toUpperCase()) ||
+            (r.empName && String(r.empName).toLowerCase() === String(empName).toLowerCase())
+          );
+          if (foundIdx >= 0) {
+            rawFetchedRecords[foundIdx].logoutTime = cleanOutTime;
+            rawFetchedRecords[foundIdx].punchOutTime = cleanOutTime;
+            if (workReport) rawFetchedRecords[foundIdx].workReport = workReport;
+            if (developmentChanges) rawFetchedRecords[foundIdx].developmentChanges = developmentChanges;
+            filterLocalRecords();
+            updateEmployeeLiveStatus();
+          }
+
+          loadRecordsFromBackend(true);
         } else {
           message.textContent = result.message || "Punch Out failed.";
           showToast(result.message || "Failed to record punch out.", "#ef4444", 4500);
@@ -3039,12 +3046,14 @@
     }
 
     // --- FETCH ATTENDANCE DATA (FAST & DEFAULT TODAY ONLY) ---
-    async function loadRecordsFromBackend() {
+    async function loadRecordsFromBackend(silent = false) {
       const recordsEl = document.getElementById("records");
       const filterSelect = document.getElementById("filterSelect");
       const currentFilter = filterSelect.value; // 'today', 'all', or 'super-admin'
 
-      recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 22px; color:#64748b;">⚡ Loading fast attendance data...</td></tr>';
+      if (!silent) {
+        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 22px; color:#64748b;">⚡ Loading fast attendance data...</td></tr>';
+      }
 
       try {
         let url = `${API_BASE}/api/attendance/today`;

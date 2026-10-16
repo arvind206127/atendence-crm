@@ -63,25 +63,40 @@ function calculateDistanceToOffice(lat, lng) {
   const d1 = calculateDistanceMeters(lat, lng, OFFICE_LATITUDE, OFFICE_LONGITUDE);
   const d2 = calculateDistanceMeters(lat, lng, 28.59867, 77.43187); // NX One Office Desk
   const d3 = calculateDistanceMeters(lat, lng, 28.600556, 77.432778); // NX One Campus Pin
-  return Math.min(d1, d2, d3);
+  const d4 = calculateDistanceMeters(lat, lng, 28.6008, 77.4326); // NX One Techzone 4
+  return Math.min(d1, d2, d3, d4);
 }
 
 // Check if coordinates or address fall within the office boundary or NX One commercial campus
 function isInsideOfficeBoundary(lat, lng, address = '') {
   if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return false;
   const dist = calculateDistanceToOffice(lat, lng);
-  if (dist <= Math.max(OFFICE_RADIUS_METERS, 250)) return true;
+  // Laptop Wi-Fi location in NX One / Greater Noida West drifts up to 450-500m
+  if (dist <= 500) return true;
 
-  // NX One Techzone 4 campus coordinates bounding box
-  const isAtNXOne = (lat >= 28.5900 && lat <= 28.6100 && lng >= 77.4180 && lng <= 77.4420);
+  // NX One Techzone 4 campus coordinates bounding box (covers Greater Noida West campus)
+  const isAtNXOne = (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500);
   if (isAtNXOne) return true;
 
-  // Address check if reverse geocoded as NX One
-  if (address && /nx\s*one|techzone\s*4|greater\s*noida\s*west/i.test(address)) {
+  // Address check if reverse geocoded near office campus
+  if (address && /nx\s*one|techzone|greater\s*noida|noida\s*extension|bisrakh|gautam\s*buddha/i.test(address)) {
     return true;
   }
 
   return false;
+}
+
+function getISTDateString(dateObj = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: ATTENDANCE_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(dateObj); // "YYYY-MM-DD"
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 // Helpers for Indian Standard Time (Asia/Kolkata, UTC+5:30)
@@ -222,8 +237,8 @@ router.post('/submit', async (req, res) => {
 
     // Calculate distance from office (Allow up to 450m for NX One Techzone 4 campus boundary)
     const rawDistance = calculateDistanceToOffice(userLat, userLng);
-    const distanceMeters = (isAtOffice || rawDistance <= 50) ? 0 : rawDistance;
-    const maxRadius = Math.max(OFFICE_RADIUS_METERS, 450);
+    const distanceMeters = (isAtOffice || rawDistance <= 500) ? 0 : rawDistance;
+    const maxRadius = Math.max(OFFICE_RADIUS_METERS, 500);
     if (!isHome && !isAtOffice && rawDistance > maxRadius && !req.body.allowOutside) {
       return res.status(403).json({
         success: false,
@@ -349,9 +364,15 @@ router.post('/submit', async (req, res) => {
     }).sort({ createdAt: -1 });
 
     if (!record) {
+      const istDate = getISTDateString(now);
       record = new Attendance({
         empId: finalEmpId,
         empName: finalEmpName,
+        employeeId: finalEmpId,
+        userName: finalEmpName,
+        name: finalEmpName,
+        userId: user ? user._id.toString() : (finalEmpId ? finalEmpId : undefined),
+        date: istDate,
         organizationId: userOrgId,
         status: calculatedStatus,
         isHalfDay: isHalfDay,
@@ -368,6 +389,11 @@ router.post('/submit', async (req, res) => {
     } else {
       record.status = calculatedStatus;
       record.isHalfDay = isHalfDay;
+      record.employeeId = finalEmpId;
+      record.userName = finalEmpName;
+      record.name = finalEmpName;
+      if (!record.date) record.date = getISTDateString(now);
+      if (user && !record.userId) record.userId = user._id.toString();
       if (isHalfDay) record.halfDayReason = 'Punched in after 10:05 AM cutoff';
       record.location = savedLocation;
       if (finalSelfie) record.selfie = finalSelfie;
@@ -379,15 +405,17 @@ router.post('/submit', async (req, res) => {
 
     await record.save();
 
-    // Explicitly guarantee update in 'attendance' (singular) collection too
-    try {
-      const cleanDoc = record.toObject ? record.toObject() : { ...record };
-      await mongoose.connection.db.collection('attendance').updateOne(
-        { _id: record._id },
-        { $set: cleanDoc },
-        { upsert: true }
-      );
-    } catch (syncErr) {}
+    // Explicitly guarantee update in 'attendance' (singular) collection too (non-blocking)
+    setImmediate(async () => {
+      try {
+        const cleanDoc = record.toObject ? record.toObject() : { ...record };
+        await mongoose.connection.db.collection('attendance').updateOne(
+          { _id: record._id },
+          { $set: cleanDoc },
+          { upsert: true }
+        );
+      } catch (syncErr) {}
+    });
 
     const fullImageUrl = `/api/attendance/image/${record._id}`;
 
@@ -489,7 +517,7 @@ router.post('/punch-out', async (req, res) => {
     }
 
     // Geofence check for Punch Out (bypassed if isHome, isLunch, or isAtOfficeOut)
-    const maxRadiusOut = Math.max(OFFICE_RADIUS_METERS, 450);
+    const maxRadiusOut = Math.max(OFFICE_RADIUS_METERS, 500);
     if (!isHome && !isLunch && !isAtOfficeOut && rawDistanceOut > maxRadiusOut) {
       return res.status(403).json({
         success: false,
@@ -595,9 +623,15 @@ router.post('/punch-out', async (req, res) => {
     if (!record) {
       const finalId = searchEmpId || (searchName ? `EMP-${searchName.toUpperCase()}` : 'EMP101');
       const finalName = searchName || 'Employee';
+      const istDate = getISTDateString(now);
       record = new Attendance({
         empId: finalId,
         empName: finalName,
+        employeeId: finalId,
+        userName: finalName,
+        name: finalName,
+        userId: user ? user._id.toString() : (finalId ? finalId : undefined),
+        date: istDate,
         organizationId: userOrgId,
         status: 'Present',
         location: savedLogoutLocation,
@@ -618,6 +652,11 @@ router.post('/punch-out', async (req, res) => {
     } else {
       record.punchOut = now;
       record.logoutTime = logoutTimeStr;
+      record.employeeId = record.employeeId || searchEmpId || record.empId;
+      record.userName = record.userName || searchName || record.empName;
+      record.name = record.name || searchName || record.empName;
+      if (!record.date) record.date = getISTDateString(now);
+      if (user && !record.userId) record.userId = user._id.toString();
       record.logoutLocation = savedLogoutLocation;
       record.punchOutSelfie = selfie;
       record.punchOutImageUrl = punchOutImgRelative || '';
@@ -644,45 +683,49 @@ router.post('/punch-out', async (req, res) => {
       await record.save();
     }
 
-    // Explicitly guarantee update in 'attendance' (singular) collection too
-    try {
-      const cleanDoc = record.toObject ? record.toObject() : { ...record };
-      await mongoose.connection.db.collection('attendance').updateOne(
-        { _id: record._id },
-        { $set: cleanDoc },
-        { upsert: true }
-      );
-    } catch (syncErr) {}
-
-    // Save report data into dedicated Report collection (only when not just a lunch break without real report)
-    if (!isLunch || (workReport && workReport.length >= 5)) {
+    // Explicitly guarantee update in 'attendance' (singular) collection too (non-blocking)
+    setImmediate(async () => {
       try {
-        await Report.findOneAndUpdate(
-          { attendanceId: record._id },
-          {
-            $set: {
-              empId: record.empId,
-              empName: record.empName,
-              organizationId: record.organizationId || 'org_advmen_platform',
-              workCategory: record.workCategory,
-              workReport: record.workReport,
-              developmentChanges: record.developmentChanges || '',
-              taskSummary: record.taskSummary || '',
-              attendanceId: record._id,
-              date: formatCleanISTDate(now) || new Date().toISOString().slice(0, 10),
-              punchInTime: record.loginTime || formatCleanISTTime(record.punchIn),
-              punchOutTime: logoutTimeStr,
-              workMode: req.body.workMode || (isHome ? 'Home' : 'Office'),
-              location: savedLogoutLocation,
-              status: 'Submitted',
-              submittedAt: now
-            }
-          },
-          { upsert: true, new: true }
+        const cleanDoc = record.toObject ? record.toObject() : { ...record };
+        await mongoose.connection.db.collection('attendance').updateOne(
+          { _id: record._id },
+          { $set: cleanDoc },
+          { upsert: true }
         );
-      } catch (repErr) {
-        console.error('Error saving to reports collection:', repErr.message);
-      }
+      } catch (syncErr) {}
+    });
+
+    // Save report data into dedicated Report collection in background
+    if (!isLunch || (workReport && workReport.length >= 5)) {
+      setImmediate(async () => {
+        try {
+          await Report.findOneAndUpdate(
+            { attendanceId: record._id },
+            {
+              $set: {
+                empId: record.empId,
+                empName: record.empName,
+                organizationId: record.organizationId || 'org_advmen_platform',
+                workCategory: record.workCategory,
+                workReport: record.workReport,
+                developmentChanges: record.developmentChanges || '',
+                taskSummary: record.taskSummary || '',
+                attendanceId: record._id,
+                date: formatCleanISTDate(now) || new Date().toISOString().slice(0, 10),
+                punchInTime: record.loginTime || formatCleanISTTime(record.punchIn),
+                punchOutTime: logoutTimeStr,
+                workMode: req.body.workMode || (isHome ? 'Home' : 'Office'),
+                location: savedLogoutLocation,
+                status: 'Submitted',
+                submittedAt: now
+              }
+            },
+            { upsert: true, new: true }
+          );
+        } catch (repErr) {
+          console.error('Error saving to reports collection:', repErr.message);
+        }
+      });
     }
 
     const inTime = record.loginTime || formatCleanISTTime(record.punchIn);
@@ -803,15 +846,17 @@ router.post(['/lunch/start', '/lunch-start'], async (req, res) => {
       await record.save();
     }
 
-    // Explicitly guarantee update in 'attendance' (singular) collection too
-    try {
-      const cleanDoc = record.toObject ? record.toObject() : { ...record };
-      await mongoose.connection.db.collection('attendance').updateOne(
-        { _id: record._id },
-        { $set: cleanDoc },
-        { upsert: true }
-      );
-    } catch (syncErr) {}
+    // Explicitly guarantee update in 'attendance' (singular) collection too (non-blocking)
+    setImmediate(async () => {
+      try {
+        const cleanDoc = record.toObject ? record.toObject() : { ...record };
+        await mongoose.connection.db.collection('attendance').updateOne(
+          { _id: record._id },
+          { $set: cleanDoc },
+          { upsert: true }
+        );
+      } catch (syncErr) {}
+    });
 
     res.status(200).json({
       success: true,
@@ -875,15 +920,17 @@ router.post(['/lunch/end', '/lunch-end'], async (req, res) => {
 
     await record.save();
 
-    // Explicitly guarantee update in 'attendance' (singular) collection too
-    try {
-      const cleanDoc = record.toObject ? record.toObject() : { ...record };
-      await mongoose.connection.db.collection('attendance').updateOne(
-        { _id: record._id },
-        { $set: cleanDoc },
-        { upsert: true }
-      );
-    } catch (syncErr) {}
+    // Explicitly guarantee update in 'attendance' (singular) collection too (non-blocking)
+    setImmediate(async () => {
+      try {
+        const cleanDoc = record.toObject ? record.toObject() : { ...record };
+        await mongoose.connection.db.collection('attendance').updateOne(
+          { _id: record._id },
+          { $set: cleanDoc },
+          { upsert: true }
+        );
+      } catch (syncErr) {}
+    });
 
     res.status(200).json({
       success: true,

@@ -158,24 +158,26 @@ async function syncToAttendanceCollection(doc) {
   }
 }
 
-// Post-save hook
-attendanceSchema.post('save', async function (doc) {
-  try {
-    await syncToAttendanceCollection(doc);
-  } catch (err) {}
+// Post-save hook (non-blocking for instant API response)
+attendanceSchema.post('save', function (doc) {
+  setImmediate(() => {
+    syncToAttendanceCollection(doc).catch(() => {});
+  });
 });
 
-// Post findOneAndUpdate / updateOne hook
-attendanceSchema.post(['findOneAndUpdate', 'updateOne'], async function () {
-  try {
-    if (mongoose.connection && mongoose.connection.readyState === 1) {
-      const query = this.getQuery();
-      const updated = await mongoose.model('Attendance').findOne(query).lean();
-      if (updated) {
-        await syncToAttendanceCollection(updated);
+// Post findOneAndUpdate / updateOne hook (non-blocking for instant API response)
+attendanceSchema.post(['findOneAndUpdate', 'updateOne'], function () {
+  setImmediate(async () => {
+    try {
+      if (mongoose.connection && mongoose.connection.readyState === 1) {
+        const query = this.getQuery();
+        const updated = await mongoose.model('Attendance').findOne(query).lean();
+        if (updated) {
+          await syncToAttendanceCollection(updated);
+        }
       }
-    }
-  } catch (err) {}
+    } catch (err) {}
+  });
 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);
