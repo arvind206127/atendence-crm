@@ -10,8 +10,8 @@ const SSO_SHARED_SECRET = process.env.SSO_SHARED_SECRET || 'advmen_sso_shared_se
 const CRM_FRONTEND_URL = (process.env.CRM_FRONTEND_URL || 'https://advmen-crm-frontend.vercel.app').replace(/\/+$/, '');
 const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
 
-// Helper: Check if current login time in Asia/Kolkata is after 10:05 AM (Cutoff for Half Day)
-function checkIsHalfDay(date = new Date()) {
+// Helper: Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+function evaluatePunchInWindow(date = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: ATTENDANCE_TIMEZONE,
@@ -21,21 +21,38 @@ function checkIsHalfDay(date = new Date()) {
     }).formatToParts(date);
     const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
     const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-    return (h > 10) || (h === 10 && m > 5);
-  } catch (e) {
-    try {
-      const timeStr = date.toLocaleTimeString('en-US', {
-        timeZone: ATTENDANCE_TIMEZONE,
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      const [h, m] = timeStr.split(':').map(Number);
-      return (h > 10) || (h === 10 && m > 5);
-    } catch (err) {
-      return false;
+    const totalMinutes = h * 60 + m;
+
+    // Window 1: Up to 10:05 AM -> Allowed, Present
+    if (totalMinutes <= 605) {
+      return { allowed: true, status: 'Present', isHalfDay: false };
     }
+
+    // Window 2: Between 10:05 AM and 1:30 PM -> Blocked
+    if (totalMinutes < 810) {
+      return {
+        allowed: false,
+        blockedUntilHalfDay: true,
+        status: 'Absent',
+        nextAllowedTime: '1:30 PM',
+        message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+      };
+    }
+
+    // Window 3: 1:30 PM onwards -> Allowed, Half Day
+    return {
+      allowed: true,
+      status: 'Half Day',
+      isHalfDay: true,
+      message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+    };
+  } catch (e) {
+    return { allowed: true, status: 'Present', isHalfDay: false };
   }
+}
+
+function checkIsHalfDay(date = new Date()) {
+  return evaluatePunchInWindow(date).isHalfDay;
 }
 
 // Helpers for Indian Standard Time (Asia/Kolkata)
@@ -290,78 +307,100 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user._id, empId: resolvedEmpId }, JWT_SECRET, { expiresIn: '1d' });
     const ssoData = createSsoPayloadAndToken(user, resolvedEmpId, user.name);
 
-    const isAfter1005 = checkIsHalfDay(new Date());
-    const notificationMessage = isAfter1005
-      ? 'Aap 10:05 AM ke baad login kar rahe hain. Aapka Half Day lag gaya hai!'
-      : null;
+    const timeRule = evaluatePunchInWindow(new Date());
+    let notificationMessage = null;
+    if (!timeRule.allowed) {
+      notificationMessage = timeRule.message;
+    } else if (timeRule.isHalfDay) {
+      notificationMessage = 'Aap 1:30 PM ke baad login / punch kar rahe hain. Aapka Half Day lag gaya hai!';
+    }
 
-    // --- SAVE ATTENDANCE TO DATABASE ON LOGIN ---
+    // --- SAVE ATTENDANCE TO DATABASE ON LOGIN ONLY IF ALLOWED ---
     let savedAttendanceRecord = null;
-    try {
-      const now = new Date();
-      const loginTimeStr = formatCleanISTTime(now);
-      const { startOfDay, endOfDay } = getISTDayRange(now);
+    if (timeRule.allowed) {
+      try {
+        const now = new Date();
+        const loginTimeStr = formatCleanISTTime(now);
+        const { startOfDay, endOfDay, istDateStr } = getISTDayRange(now);
 
-      const orConds = [
-        { empId: resolvedEmpId },
-        { empId: { $regex: new RegExp(`^${resolvedEmpId}$`, 'i') } }
-      ];
-      if (user.name) {
-        orConds.push({ empName: { $regex: new RegExp(`^${user.name}$`, 'i') } });
-      }
+        const idRegex = new RegExp(`^${resolvedEmpId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        const nameRegex = user.name ? new RegExp(`^${user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
 
-      savedAttendanceRecord = await Attendance.findOne({
-        $or: orConds,
-        createdAt: { $gte: startOfDay, $lte: endOfDay }
-      }).sort({ createdAt: -1 });
-
-      if (!savedAttendanceRecord) {
-        // Create and save attendance record immediately in database
-        savedAttendanceRecord = new Attendance({
-          empId: resolvedEmpId,
-          empName: user.name || 'Employee',
-          organizationId: user.organizationId || 'org_advmen_platform',
-          status: isAfter1005 ? 'Half Day' : 'Present',
-          isHalfDay: isAfter1005,
-          halfDayReason: isAfter1005 ? 'Login after 10:05 AM cutoff' : '',
-          halfDayNotificationSent: isAfter1005,
-          punchIn: now,
-          punchOut: null,
-          loginTime: loginTimeStr,
-          logoutTime: null,
-          location: {
-            address: 'NX One, Techzone 4, Greater Noida West',
-            lat: 28.600556,
-            lng: 77.432778,
-            accuracy: 15,
-            distanceMeters: 0
-          },
-          isOnLunch: false
-        });
-        await savedAttendanceRecord.save();
-      } else {
-        // Record exists, ensure status and isHalfDay reflect 10:05 AM rule if punched in after 10:05
-        if (isAfter1005 && !savedAttendanceRecord.isHalfDay) {
-          savedAttendanceRecord.isHalfDay = true;
-          savedAttendanceRecord.status = 'Half Day';
-          savedAttendanceRecord.halfDayReason = 'Login after 10:05 AM cutoff';
-          await savedAttendanceRecord.save();
+        const orConds = [
+          { empId: idRegex },
+          { employeeId: idRegex }
+        ];
+        if (nameRegex) {
+          orConds.push({ empName: nameRegex });
         }
-      }
 
-      // Explicit direct sync to singular 'attendance' collection
-      if (savedAttendanceRecord) {
-        try {
-          const cleanDoc = savedAttendanceRecord.toObject ? savedAttendanceRecord.toObject() : { ...savedAttendanceRecord };
-          await mongoose.connection.db.collection('attendance').updateOne(
-            { _id: savedAttendanceRecord._id },
-            { $set: cleanDoc },
-            { upsert: true }
-          );
-        } catch (syncErr) {}
+        savedAttendanceRecord = await Attendance.findOne({
+          $and: [
+            { $or: orConds },
+            {
+              $or: [
+                { date: istDateStr },
+                { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+                { punchIn: { $gte: startOfDay, $lte: endOfDay } }
+              ]
+            }
+          ]
+        }).sort({ createdAt: -1 });
+
+        if (!savedAttendanceRecord) {
+          // Create and save attendance record immediately in database
+          savedAttendanceRecord = new Attendance({
+            empId: resolvedEmpId,
+            empName: user.name || 'Employee',
+            organizationId: user.organizationId || 'org_advmen_platform',
+            status: timeRule.status,
+            isHalfDay: timeRule.isHalfDay,
+            halfDayReason: timeRule.isHalfDay ? 'Login at/after 1:30 PM (after 10:05 AM cutoff)' : '',
+            halfDayNotificationSent: timeRule.isHalfDay,
+            punchIn: now,
+            punchOut: null,
+            loginTime: loginTimeStr,
+            logoutTime: null,
+            date: istDateStr,
+            location: {
+              address: 'NX One, Techzone 4, Greater Noida West',
+              lat: 28.59867,
+              lng: 77.43187,
+              accuracy: 15,
+              distanceMeters: 0
+            },
+            isOnLunch: false
+          });
+          await savedAttendanceRecord.save();
+        } else {
+          // Record exists, ensure status and isHalfDay reflect rule
+          if (timeRule.isHalfDay && !savedAttendanceRecord.isHalfDay) {
+            savedAttendanceRecord.isHalfDay = true;
+            savedAttendanceRecord.status = 'Half Day';
+            savedAttendanceRecord.halfDayReason = 'Login at/after 1:30 PM (after 10:05 AM cutoff)';
+            await savedAttendanceRecord.save();
+          }
+        }
+
+        // Explicit direct sync to singular 'attendance' collection
+        if (savedAttendanceRecord) {
+          try {
+            const cleanDoc = savedAttendanceRecord.toObject ? savedAttendanceRecord.toObject() : { ...savedAttendanceRecord };
+            await mongoose.connection.db.collection('attendances').updateOne(
+              {
+                $or: [
+                  { _id: savedAttendanceRecord._id },
+                  { empId: idRegex, date: istDateStr }
+                ]
+              },
+              { $set: cleanDoc },
+              { upsert: true }
+            );
+          } catch (syncErr) {}
+        }
+      } catch (attErr) {
+        console.error('Error saving attendance on login:', attErr.message);
       }
-    } catch (attErr) {
-      console.error('Error saving attendance on login:', attErr.message);
     }
 
     res.json({
@@ -372,8 +411,8 @@ router.post('/login', async (req, res) => {
       empId: resolvedEmpId,
       name: user.name,
       email: user.email,
-      isHalfDay: isAfter1005,
-      isAfter1005: isAfter1005,
+      isHalfDay: timeRule.isHalfDay,
+      isBlockedUntil130: !timeRule.allowed,
       notificationMessage: notificationMessage,
       attendanceRecordId: savedAttendanceRecord?._id,
       attendanceSaved: Boolean(savedAttendanceRecord)

@@ -1629,71 +1629,6 @@
             <div id="geofencePillWrap"></div>
           </div>
 
-          <!-- DAILY WORK REPORT TOGGLE BUTTON -->
-          <button type="button" class="btn-report-toggle" id="btnReportToggle" onclick="toggleReportForm()">
-            <div class="report-toggle-left">
-              <span class="report-toggle-icon">📝</span>
-              <div class="report-toggle-info">
-                <strong class="report-toggle-title">Daily Work & Development Report</strong>
-                <span class="report-toggle-subtitle" id="reportToggleSubtitle">Click to open & fill • Mandatory for Logout / Punch Out</span>
-              </div>
-            </div>
-            <div class="report-toggle-right">
-              <span id="reportPillBadge" class="report-pill-badge pending">⏳ Report Pending</span>
-              <span id="reportChevron" class="report-chevron">▼</span>
-            </div>
-          </button>
-
-          <!-- DAILY WORK & DEVELOPMENT REPORT SECTION (MANDATORY FOR LOGOUT / PUNCH OUT) -->
-          <div class="work-report-box" id="workReportSection" style="display:none;">
-            <div class="work-report-header">
-              <label for="dailyWorkReportInput" class="work-report-label">
-                <span>📝 Daily Work & Development Report</span>
-                <span class="report-badge-req">Required for Logout / Punch Out *</span>
-              </label>
-              <small class="work-report-sub">Daily work and development summary must be completed before logging out or punching out.</small>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px;">
-              <div>
-                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Work Category:</label>
-                <select id="workCategorySelect" class="form-input" style="padding:7px 10px; font-size:12px; border-radius:8px; border:1px solid #cbd5e1; width:100%; font-weight:600; background:#fff;">
-                  <option value="Development & Code Changes" selected>💻 Software Development & Code Changes</option>
-                  <option value="Bug Fixes & Maintenance">🛠️ Bug Fixes & System Maintenance</option>
-                  <option value="Feature Release & UI">🚀 Feature Release & UI Improvements</option>
-                  <option value="Client Calls & Sales">📞 Client Meetings / Sales & Support</option>
-                  <option value="General Tasks & Planning">📋 General Operations & Tasks</option>
-                </select>
-              </div>
-
-              <div>
-                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Specific Changes / Modules Updated:</label>
-                <input 
-                  type="text" 
-                  id="developmentChangesInput" 
-                  placeholder="e.g., Attendance punch-out, Daily report validation, Super Admin sync" 
-                  style="width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:8px 12px; font-size:12px; font-family:inherit; box-sizing:border-box;"
-                >
-              </div>
-            </div>
-
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Detailed Tasks / Work Summary *:</label>
-            <textarea 
-              id="dailyWorkReportInput" 
-              class="work-report-textarea" 
-              rows="3" 
-              placeholder="Describe the tasks completed, features developed, code changes, or deliverables submitted today..."
-              oninput="handleReportInput()"
-            ></textarea>
-            <div class="work-report-footer">
-              <span id="reportCharCount" style="font-size:11px; color:#64748b;">Min 5 characters required</span>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span id="reportStatusIndicator" class="report-status-pending">⏳ Work Report Pending</span>
-                <button type="button" class="btn-save-report-inline" onclick="submitWorkReportOnly()">💾 Save Report</button>
-              </div>
-            </div>
-          </div>
-
           <!-- ACTION BUTTONS: PUNCH IN, LUNCH BREAK & PUNCH OUT -->
           <div class="punch-actions-grid">
             <button type="button" class="btn-punch-in" id="btnPunchIn" onclick="submitAttendance()">
@@ -1717,7 +1652,7 @@
               <div>
                 <strong style="color:#b45309; font-size:13px; display:block;">Lunch Break Active</strong>
                 <p style="font-size:11.5px; color:#92400e; margin-top:2px;">
-                  🟢 Lunch break chal raha hai! Daily Work Report submit nahi karni padegi aur Selfie photo bhi required nahi hai.
+                  🟢 Lunch break chal raha hai! Break khatam hone par "End Lunch" click karein.
                 </p>
               </div>
             </div>
@@ -1727,7 +1662,7 @@
           </div>
 
           <div id="message" class="status-msg-box">
-            Selfie photo, GPS verification, and Daily Work Report are required for Punch Out.
+            Selfie photo and GPS verification within 100m are required for Punch In & Punch Out.
           </div>
         </section>
 
@@ -1736,7 +1671,7 @@
           <div class="panel-header">
             <div>
               <h2 style="margin-bottom: 2px;">📋 Today's Attendance Logs</h2>
-              <small id="todayDateSubtext" style="color:var(--text-muted); font-size:12px;">Live records for today (Asia/Kolkata). Old data stays safe in database.</small>
+              <small id="todayDateSubtext" style="color:var(--text-muted); font-size:12px;">Live records for today (Asia/Kolkata). Single consolidated row per employee.</small>
             </div>
             <button type="button" onclick="render()" style="background:#f1f5f9; color:#475569; padding:6px 12px; font-size:12px; border:1px solid #cbd5e1;">
               🔄 Refresh
@@ -1750,7 +1685,7 @@
             <select id="filterSelect" class="filter-select" onchange="loadRecordsFromBackend()">
               <option value="today" selected>📅 Today's Records Only</option>
               <option value="all">📂 All Records (History Archive)</option>
-              <option value="super-admin">👑 Super Admin CRM View (All Reports & Code Changes)</option>
+              <option value="super-admin">👑 Super Admin CRM View</option>
             </select>
           </div>
 
@@ -1763,14 +1698,13 @@
                   <th>Punch In (Login)</th>
                   <th>🍱 Lunch Break</th>
                   <th>Punch Out (Logout)</th>
-                  <th>Daily Work Report</th>
                   <th>Status</th>
                   <th>Office Distance</th>
                   <th>Selfies</th>
                 </tr>
               </thead>
               <tbody id="records">
-                <tr><td colspan="9" style="text-align:center; padding: 24px; color:#64748b;">Loading fast records...</td></tr>
+                <tr><td colspan="8" style="text-align:center; padding: 24px; color:#64748b;">Loading fast records...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1785,50 +1719,17 @@
     <img id="lightboxImg" class="lightbox-content" src="" alt="Enlarged Selfie">
   </div>
 
-  <!-- Daily Work & Development Report View Modal -->
-  <div id="reportViewModal" class="lightbox-modal" onclick="closeReportModal(event)">
-    <div class="report-modal-card" onclick="event.stopPropagation()">
-      <div class="report-modal-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:26px;">📝</span>
-          <div>
-            <h3 id="reportModalEmpName" style="font-size:16px; font-weight:700; color:#0f172a; margin:0;">Daily Work & Development Report</h3>
-            <small id="reportModalMeta" style="color:#64748b; font-size:12px;">Submitted at --</small>
-          </div>
-        </div>
-        <button type="button" class="report-modal-close" onclick="closeReportModal()">&times;</button>
-      </div>
-      <div class="report-modal-body">
-        <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-          <span style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase;">Category:</span>
-          <span id="reportModalCategory" class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:12px;">Development</span>
-        </div>
-
-        <div id="reportModalChangesWrap" style="margin-bottom:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; display:none;">
-          <span style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:3px;">🚀 Specific Changes / Modules Updated:</span>
-          <div id="reportModalChanges" style="font-size:13px; color:#14532d; font-weight:600;">None specified</div>
-        </div>
-
-        <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">Work Summary & Tasks Completed:</label>
-        <div id="reportModalText" class="report-modal-text"></div>
-      </div>
-      <div style="text-align:right; margin-top:16px;">
-        <button type="button" onclick="closeReportModal()" style="background:#2563eb; color:#fff; padding:8px 20px; border-radius:8px; font-weight:600; font-size:13px; border:none; cursor:pointer;">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HALF DAY NOTIFICATION POPUP MODAL (10:05 AM RULE) -->
+  <!-- HALF DAY & PUNCH IN TIMING NOTIFICATION POPUP MODAL (10:05 AM RULE) -->
   <div id="halfDayModal" class="lightbox-modal" style="display:none;" onclick="closeHalfDayModal(event)">
     <div class="report-modal-card" style="max-width:440px; text-align:center; padding:28px 24px;" onclick="event.stopPropagation()">
-      <div style="width:64px; height:64px; border-radius:50%; background:#fef3c7; border:2px solid #fde68a; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 16px;">
+      <div id="halfDayModalIcon" style="width:64px; height:64px; border-radius:50%; background:#fef3c7; border:2px solid #fde68a; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 16px;">
         ⏰
       </div>
-      <h3 style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:800; color:#0f172a; margin-bottom:8px;">
+      <h3 id="halfDayModalTitle" style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:800; color:#0f172a; margin-bottom:8px;">
         Half Day Notification
       </h3>
-      <div style="background:#fffbeb; border:1px solid #fed7aa; border-radius:10px; padding:12px 14px; margin-bottom:18px; text-align:left;">
-        <p style="font-size:13.5px; color:#9a3412; font-weight:700; line-height:1.5;">
+      <div id="halfDayModalBox" style="background:#fffbeb; border:1px solid #fed7aa; border-radius:10px; padding:12px 14px; margin-bottom:18px; text-align:left;">
+        <p id="halfDayModalHeading" style="font-size:13.5px; color:#9a3412; font-weight:700; line-height:1.5;">
           ⚠️ Aap 10:05 AM ke baad login / punch kar rahe hain!
         </p>
         <p id="halfDayModalText" style="font-size:13px; color:#b45309; margin-top:6px; line-height:1.4;">
@@ -1876,23 +1777,60 @@
     const OFFICE_CONFIG = {
       lat: 28.59867,
       lng: 77.43187,
-      radiusMeters: 350,
-      maxAccuracyMeters: 450,
+      radiusMeters: 100,
+      maxAccuracyMeters: 350,
       timezone: 'Asia/Kolkata',
       cutoffHour: 10,
       cutoffMinute: 5
     };
 
-    // Helper: Determine if coordinates / address fall in NX One office complex
+    // Helper: Determine if coordinates fall within office 100m radius
     function isWithinOffice(lat, lng, distance, address = '') {
       if (lat === undefined || lng === undefined) return false;
-      // Wi-Fi GPS in office building / campus has up to 450-500m radius
-      if (distance !== undefined && distance <= 500) return true;
-      // NX One Techzone 4 campus coordinates bounding box
-      if (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500) return true;
-      // Check address string
-      if (address && /nx\s*one|techzone|greater\s*noida|noida\s*extension|bisrakh|gautam\s*buddha/i.test(address)) return true;
+      if (distance !== undefined && distance <= OFFICE_CONFIG.radiusMeters) return true;
       return false;
+    }
+
+    // Helpers for Indian Standard Time (Asia/Kolkata, UTC+5:30)
+    function formatCleanISTTime(dateOrStr) {
+      if (!dateOrStr) return null;
+      const s = String(dateOrStr).trim();
+      if (!s || s === 'null' || s === 'undefined' || s === '--' || s === '-' || s === 'Invalid Date') return null;
+      // If already formatted like "10:05:00 AM" or "01:30 PM", return as-is
+      if (/^\d{1,2}:\d{2}(:\d{2})?\s*(am|pm)$/i.test(s)) return s;
+      try {
+        const d = new Date(dateOrStr);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('en-IN', {
+            timeZone: OFFICE_CONFIG.timezone || 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+        }
+      } catch (e) {}
+      return s;
+    }
+
+    function formatCleanISTDate(dateOrStr) {
+      if (!dateOrStr) return null;
+      const s = String(dateOrStr).trim();
+      if (!s || s === 'null' || s === 'undefined' || s === '--' || s === '-' || s === 'Invalid Date') return null;
+      // If already DD/MM/YYYY or DD-MM-YYYY, return as-is
+      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(s)) return s;
+      try {
+        const d = new Date(dateOrStr);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-IN', {
+            timeZone: OFFICE_CONFIG.timezone || 'Asia/Kolkata',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        }
+      } catch (e) {}
+      return s;
     }
 
     let stream = null;
@@ -1919,8 +1857,8 @@
       return Math.round(R * c);
     }
 
-    // Check 10:05 AM Half Day Rule in Asia/Kolkata
-    function isCurrentTimeAfterHalfDayCutoff() {
+    // Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+    function evaluateCurrentPunchWindow() {
       const checkDate = new Date();
       try {
         const parts = new Intl.DateTimeFormat('en-GB', {
@@ -1931,10 +1869,38 @@
         }).formatToParts(checkDate);
         const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
         const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-        return (h > OFFICE_CONFIG.cutoffHour) || (h === OFFICE_CONFIG.cutoffHour && m > OFFICE_CONFIG.cutoffMinute);
+        const totalMinutes = h * 60 + m;
+
+        // Window 1: Up to 10:05 AM (<= 605 mins) -> Allowed, Present
+        if (totalMinutes <= 605) {
+          return { allowed: true, status: 'Present', isHalfDay: false, window: 'on_time' };
+        }
+        // Window 2: Between 10:05 AM and 1:30 PM (606 to 809 mins) -> BLOCKED
+        if (totalMinutes < 810) {
+          return {
+            allowed: false,
+            blockedUntilHalfDay: true,
+            status: 'Absent',
+            window: 'morning_blocked',
+            nextAllowedTime: '1:30 PM',
+            message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+          };
+        }
+        // Window 3: 1:30 PM onwards -> Allowed, Half Day
+        return {
+          allowed: true,
+          status: 'Half Day',
+          isHalfDay: true,
+          window: 'afternoon_half_day',
+          message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+        };
       } catch (e) {
-        return false;
+        return { allowed: true, status: 'Present', isHalfDay: false };
       }
+    }
+
+    function isCurrentTimeAfterHalfDayCutoff() {
+      return evaluateCurrentPunchWindow().isHalfDay;
     }
 
     // Update Live Clock & Cutoff Rule Banner
@@ -1959,14 +1925,26 @@
         }
       }
 
-      const isLate = isCurrentTimeAfterHalfDayCutoff();
+      const win = evaluateCurrentPunchWindow();
       if (badgeEl && textEl) {
-        if (isLate) {
+        if (!win.allowed) {
           badgeEl.className = 'rule-pill halfday';
-          textEl.textContent = 'After 10:05 AM: Half Day Window';
+          badgeEl.style.background = '#fee2e2';
+          badgeEl.style.color = '#991b1b';
+          badgeEl.style.borderColor = '#fecaca';
+          textEl.textContent = '⛔ 10:05 AM ke baad Punch In Band hai! Lunch ke baad 1:30 PM par punch in karein (Half Day lagega)';
+        } else if (win.isHalfDay) {
+          badgeEl.className = 'rule-pill halfday';
+          badgeEl.style.background = '#fffbeb';
+          badgeEl.style.color = '#b45309';
+          badgeEl.style.borderColor = '#fde68a';
+          textEl.textContent = '⚠️ 1:30 PM Half Day Window Active (Punch In karne par Half Day lagega)';
         } else {
           badgeEl.className = 'rule-pill ontime';
-          textEl.textContent = 'Before 10:05 AM: On-Time (Full Day)';
+          badgeEl.style.background = '#ecfdf5';
+          badgeEl.style.color = '#15803d';
+          badgeEl.style.borderColor = '#a7f3d0';
+          textEl.textContent = '🟢 Subah 10:05 AM se pehle: On-Time Window (Present)';
         }
       }
     }
@@ -2131,10 +2109,47 @@
     // --- LUNCH BREAK STATE & HELPERS ---
     let isLunchActive = false;
 
-    function showHalfDayNotificationModal(customMsg) {
+    function showHalfDayNotificationModal(customMsg, isBlocked = false) {
       const modal = document.getElementById('halfDayModal');
+      const iconEl = document.getElementById('halfDayModalIcon');
+      const titleEl = document.getElementById('halfDayModalTitle');
+      const boxEl = document.getElementById('halfDayModalBox');
+      const headingEl = document.getElementById('halfDayModalHeading');
       const textEl = document.getElementById('halfDayModalText');
       if (textEl && customMsg) textEl.textContent = customMsg;
+      if (isBlocked) {
+        if (iconEl) {
+          iconEl.textContent = '⛔';
+          iconEl.style.background = '#fee2e2';
+          iconEl.style.borderColor = '#fecaca';
+          iconEl.style.color = '#dc2626';
+        }
+        if (titleEl) titleEl.textContent = 'Punch In Blocked (10:05 AM Cutoff)';
+        if (boxEl) {
+          boxEl.style.background = '#fef2f2';
+          boxEl.style.borderColor = '#fecaca';
+        }
+        if (headingEl) {
+          headingEl.style.color = '#991b1b';
+          headingEl.textContent = '🚫 Subah 10:05 AM ke baad Punch In Band Hai!';
+        }
+      } else {
+        if (iconEl) {
+          iconEl.textContent = '⚠️';
+          iconEl.style.background = '#fef3c7';
+          iconEl.style.borderColor = '#fde68a';
+          iconEl.style.color = '#d97706';
+        }
+        if (titleEl) titleEl.textContent = 'Half Day Marked';
+        if (boxEl) {
+          boxEl.style.background = '#fffbeb';
+          boxEl.style.borderColor = '#fed7aa';
+        }
+        if (headingEl) {
+          headingEl.style.color = '#9a3412';
+          headingEl.textContent = '⚠️ Aapka Half Day lag gaya hai!';
+        }
+      }
       if (modal) modal.style.display = 'flex';
     }
 
@@ -2157,8 +2172,6 @@
       const icon = document.getElementById('lunchBtnIcon');
       const text = document.getElementById('lunchBtnText');
       const alertBox = document.getElementById('lunchActiveAlert');
-      const reportSub = document.getElementById('reportToggleSubtitle');
-      const reportBadge = document.getElementById('reportPillBadge');
 
       if (isLunchActive) {
         if (btn) {
@@ -2168,23 +2181,14 @@
           btn.title = 'Click to End Lunch Break';
         }
         if (alertBox) alertBox.style.display = 'flex';
-
-        if (reportSub) reportSub.textContent = '🟢 Lunch Break Active • Daily Work Report not required';
-        if (reportBadge) {
-          reportBadge.className = 'report-pill-badge ready';
-          reportBadge.textContent = '🟢 Bypassed for Lunch';
-        }
       } else {
         if (btn) {
           btn.classList.remove('active');
           if (icon) icon.textContent = '🍱';
           if (text) text.textContent = 'Lunch Break';
-          btn.title = 'Click to Start/End Lunch Break (No selfie or report required)';
+          btn.title = 'Click to Start/End Lunch Break (Must be within 100m)';
         }
         if (alertBox) alertBox.style.display = 'none';
-
-        if (reportSub) reportSub.textContent = 'Click to open & fill • Mandatory for Logout / Punch Out';
-        handleReportInput();
       }
     }
 
@@ -2210,6 +2214,14 @@
         return;
       }
 
+      // Geofence check: strictly within 100m radius of office (unless Home mode)
+      const atOffice = gps ? isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address) : false;
+      const maxRadius = OFFICE_CONFIG.radiusMeters || 100;
+      if (!isHomeModeActive && !atOffice && gps && gps.distanceMeters > maxRadius) {
+        showToast(`Lunch action blocked: You are ${gps.distanceMeters}m away from the office campus (${maxRadius}m radius allowed).`, "#ef4444", 4500);
+        return;
+      }
+
       const nextAction = isLunchActive ? 'end' : 'start';
       if (btn) btn.disabled = true;
 
@@ -2221,6 +2233,7 @@
           body: JSON.stringify({
             empId,
             empName,
+            isHomeLocation: isHomeModeActive,
             location: gps || { address: 'Office Location', lat: OFFICE_CONFIG.lat, lng: OFFICE_CONFIG.lng }
           })
         });
@@ -2231,9 +2244,9 @@
         if (data.success) {
           updateLunchUI(data.isOnLunch, data.lunchStartTime);
           if (data.isOnLunch) {
-            showToast(`🍱 Lunch Started at ${data.lunchStartTime || 'Now'}! (Report aur selfie require nahi hai)`, "#10b981", 4500);
+            showToast(`🍱 Lunch Started at ${data.lunchStartTime || 'Now'}!`, "#10b981", 4500);
             const msg = document.getElementById('message');
-            if (msg) msg.textContent = "🍱 Lunch break started! Daily Work Report aur Selfie require nahi hai.";
+            if (msg) msg.textContent = `🍱 Lunch break started at ${data.lunchStartTime || 'Now'}!`;
           } else {
             showToast(`🍱 Lunch Ended (${data.breakDurationMinutes || 0} mins)! Welcome back to work.`, "#2563eb", 4500);
             const msg = document.getElementById('message');
@@ -2338,10 +2351,17 @@
           showDashboard(finalId, data.name || 'Employee');
 
           // Check if employee logged in after 10:05 AM -> Show Notification Modal & Toast!
-          const isLate = Boolean(data.isHalfDay || data.isAfter1005 || isCurrentTimeAfterHalfDayCutoff());
-          if (isLate) {
-            const notifMsg = data.notificationMessage || "Aap 10:05 AM ke baad login kar rahe hain. Aapka Half Day lag gaya hai!";
-            showHalfDayNotificationModal(notifMsg);
+          const win = evaluateCurrentPunchWindow();
+          const isBlocked = Boolean(data.isBlockedUntil130 || !win.allowed);
+          const isLate = Boolean(data.isHalfDay || win.isHalfDay);
+
+          if (isBlocked) {
+            const notifMsg = data.notificationMessage || win.message || "Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.";
+            showHalfDayNotificationModal(notifMsg, true);
+            showToast("⛔ " + notifMsg, "#ef4444", 6500);
+          } else if (isLate) {
+            const notifMsg = data.notificationMessage || win.message || "Aapne lunch ke baad login / punch in kiya hai. Aapka Half Day mark ho gaya hai!";
+            showHalfDayNotificationModal(notifMsg, false);
             showToast("⚠️ " + notifMsg, "#ea580c", 6500);
           } else {
             showToast(`Welcome, ${data.name || 'Employee'}!`, "#10b981");
@@ -2359,41 +2379,7 @@
       }
     }
 
-    function logoutSession(force = false) {
-      const empId = localStorage.getItem('empId');
-      if (!force && empId) {
-        const reportInput = document.getElementById('dailyWorkReportInput');
-        const workReport = (reportInput ? reportInput.value : '').trim();
-        
-        // Find if employee already has a submitted report or punch out for today
-        const todayRecord = (rawFetchedRecords || []).find(r => 
-          (r.empId && String(r.empId).toLowerCase() === String(empId).toLowerCase()) || 
-          (r.empName && String(r.empName).toLowerCase() === String(localStorage.getItem('empName') || '').toLowerCase())
-        );
-
-        const alreadySubmittedReport = todayRecord && todayRecord.workReport && todayRecord.workReport.trim().length >= 5;
-        const hasTypedValidReport = workReport.length >= 5;
-
-        // If neither typed nor already submitted on server, block logout (unless Lunch break is active!)
-        if (!hasTypedValidReport && !alreadySubmittedReport && !isLunchActive) {
-          openReportForm();
-          const reportBox = document.getElementById('workReportSection');
-          if (reportBox) {
-            reportBox.classList.add('report-error');
-            setTimeout(() => reportBox.classList.remove('report-error'), 3000);
-            reportBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          if (reportInput) reportInput.focus();
-
-          const message = document.getElementById('message');
-          if (message) {
-            message.textContent = "❌ Logout Blocked: You must fill and submit your Daily Work Report before logout.";
-          }
-          showToast("❌ Logout Blocked! You must fill your Daily Work Report before logout.", "#ef4444", 4500);
-          return;
-        }
-      }
-
+    function logoutSession() {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
@@ -2610,6 +2596,15 @@
         return;
       }
 
+      // Check Punch In timing window: 10:05 AM to 1:30 PM is BLOCKED
+      const win = evaluateCurrentPunchWindow();
+      if (!win.allowed) {
+        showHalfDayNotificationModal(win.message, true);
+        if (message) message.textContent = `❌ ${win.message}`;
+        showToast(win.message, "#ea580c", 6500);
+        return;
+      }
+
       if (!selfieData) {
         if (stream) {
           try { takeSelfie(); } catch (e) {}
@@ -2646,26 +2641,25 @@
         };
       }
 
-      // Pre-check Geofence on Frontend (only if NOT in Home mode)
+      // Pre-check Geofence strictly within 100m (unless in Home mode)
       const atOfficeIn = isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address);
-      if (!isHomeModeActive && !atOfficeIn && gps.distanceMeters > 450) {
+      const maxRadiusIn = OFFICE_CONFIG.radiusMeters || 100;
+      if (!isHomeModeActive && !atOfficeIn && gps.distanceMeters > maxRadiusIn) {
         const dist = gps.distanceMeters;
-        message.textContent = `Punch In Blocked: You are ${dist}m away from the office campus.`;
-        showToast(`You are outside office boundary (${dist}m). Please enable Work From Home mode or punch inside campus.`, "#ef4444", 4500);
+        if (message) message.textContent = `Punch In Blocked: You are ${dist}m away from the office campus (${maxRadiusIn}m radius allowed).`;
+        showToast(`You are outside office boundary (${dist}m). Allowed within ${maxRadiusIn}m!`, "#ef4444", 4500);
         return;
       }
 
       const allowedAccIn = (isHomeModeActive || atOfficeIn) ? Math.max(OFFICE_CONFIG.maxAccuracyMeters, 450) : OFFICE_CONFIG.maxAccuracyMeters;
       if (gps.accuracy > allowedAccIn) {
-        message.textContent = `Punch In Blocked: GPS accuracy low (±${gps.accuracy}m).`;
+        if (message) message.textContent = `Punch In Blocked: GPS accuracy low (±${gps.accuracy}m).`;
         showToast(`GPS accuracy is low (±${gps.accuracy}m). Please refresh GPS!`, "#f59e0b", 4000);
         return;
       }
 
-      const isLateHalfDay = isCurrentTimeAfterHalfDayCutoff();
-
       btnIn.disabled = true;
-      message.textContent = "Saving attendance in database...";
+      if (message) message.textContent = "Saving attendance in database...";
 
       try {
         const response = await fetch(`${API_BASE}/api/attendance/submit`, {
@@ -2690,17 +2684,23 @@
         const result = await response.json();
         btnIn.disabled = false;
 
+        if (!response.ok && result.blockedUntilHalfDay) {
+          showHalfDayNotificationModal(result.message || win.message, true);
+          if (message) message.textContent = `❌ ${result.message}`;
+          showToast(result.message, "#ea580c", 6500);
+          return;
+        }
+
         if (response.ok && result.success) {
-          const empDisplayName = result.empName || empName;
           if (result.empId && result.empId !== 'undefined') localStorage.setItem('empId', result.empId);
 
-          if (result.isHalfDay || isLateHalfDay) {
-            const notifMsg = result.notificationMessage || "Aap 10:05 AM ke baad punch kar rahe hain. Aapka Half Day lag gaya hai!";
-            showHalfDayNotificationModal(notifMsg);
-            message.textContent = `⚠️ Attendance saved in database as HALF DAY at ${result.loginTime || result.punchTime}!`;
+          if (result.isHalfDay || win.isHalfDay) {
+            const notifMsg = result.notificationMessage || "Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff ke baad). Aapka Half Day lag gaya hai!";
+            showHalfDayNotificationModal(notifMsg, false);
+            if (message) message.textContent = `⚠️ Attendance saved as HALF DAY at ${result.loginTime || result.punchTime}!`;
             showToast(`⚠️ Attendance Saved! ` + notifMsg, "#ea580c", 5000);
           } else {
-            message.textContent = `✓ Attendance saved in database! Marked PRESENT at ${result.loginTime || result.punchTime}!`;
+            if (message) message.textContent = `✓ Attendance saved! Marked PRESENT at ${result.loginTime || result.punchTime}!`;
             showToast(`✅ Attendance saved successfully! (${result.loginTime})`, "#10b981", 3500);
           }
 
@@ -2721,12 +2721,12 @@
 
           loadRecordsFromBackend(true);
         } else {
-          message.textContent = result.message || "Punch In failed.";
+          if (message) message.textContent = result.message || "Punch In failed.";
           showToast(result.message || "Failed to mark attendance.", "#ef4444", 4500);
         }
       } catch (err) {
         btnIn.disabled = false;
-        message.textContent = "Server connection error during Punch In.";
+        if (message) message.textContent = "Server connection error during Punch In.";
         console.error("submitAttendance network error:", err);
         showNetworkIssueNotification(
           "Punch In Failed (Network Error)",
@@ -2736,163 +2736,12 @@
       }
     }
 
-    // --- WORK REPORT HELPERS ---
-    function toggleReportForm(forceState = null) {
-      const box = document.getElementById('workReportSection');
-      const btn = document.getElementById('btnReportToggle');
-      const sub = document.getElementById('reportToggleSubtitle');
-      if (!box || !btn) return;
-
-      const isCurrentlyOpen = box.style.display !== 'none' && box.style.display !== '';
-      const shouldOpen = forceState !== null ? forceState : !isCurrentlyOpen;
-
-      if (shouldOpen) {
-        box.style.display = 'block';
-        btn.classList.add('is-open');
-        if (sub) sub.textContent = 'Report form is open • Fill and save your report below';
-        const input = document.getElementById('dailyWorkReportInput');
-        if (forceState !== null && input) {
-          setTimeout(() => input.focus(), 150);
-        }
-      } else {
-        box.style.display = 'none';
-        btn.classList.remove('is-open');
-        if (sub) sub.textContent = 'Click to open & fill • Mandatory for Logout / Punch Out';
-      }
-    }
-
-    function openReportForm() {
-      toggleReportForm(true);
-    }
-
-    function handleReportInput() {
-      const input = document.getElementById('dailyWorkReportInput');
-      const box = document.getElementById('workReportSection');
-      const countEl = document.getElementById('reportCharCount');
-      const statusEl = document.getElementById('reportStatusIndicator');
-      const badge = document.getElementById('reportPillBadge');
-      if (!input) return;
-
-      const len = input.value.trim().length;
-      if (countEl) countEl.textContent = `${len} characters (Min 5 req.)`;
-
-      if (len >= 5) {
-        if (box) {
-          box.classList.add('active-typing');
-          box.classList.remove('report-error');
-        }
-        if (statusEl) {
-          statusEl.className = 'report-status-ready';
-          statusEl.textContent = '✓ Work Report Ready';
-        }
-        if (badge) {
-          badge.className = 'report-pill-badge ready';
-          badge.textContent = '✓ Report Ready';
-        }
-      } else {
-        if (box) box.classList.remove('active-typing');
-        if (statusEl) {
-          statusEl.className = 'report-status-pending';
-          statusEl.textContent = '⏳ Work Report Pending';
-        }
-        if (badge) {
-          badge.className = 'report-pill-badge pending';
-          badge.textContent = '⏳ Report Pending';
-        }
-      }
-    }
-
-    async function submitWorkReportOnly() {
-      const empId = localStorage.getItem('empId');
-      const empName = localStorage.getItem('empName') || 'Employee';
-      const reportInput = document.getElementById('dailyWorkReportInput');
-      const catSelect = document.getElementById('workCategorySelect');
-      const changesInput = document.getElementById('developmentChangesInput');
-
-      const workReport = (reportInput ? reportInput.value : '').trim();
-      const workCategory = catSelect ? catSelect.value : 'Development & Code Changes';
-      const developmentChanges = (changesInput ? changesInput.value : '').trim();
-
-      if (!workReport || workReport.length < 5) {
-        showToast("⚠️ Daily Work Report must have at least 5 characters.", "#ef4444");
-        if (reportInput) reportInput.focus();
-        return;
-      }
-
-      try {
-        const res = await fetch(`${API_BASE}/api/attendance/work-report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ empId, empName, workReport, workCategory, developmentChanges })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          showToast("✓ Daily Work & Development Report saved successfully!", "#10b981", 4000);
-          const badge = document.getElementById('reportPillBadge');
-          if (badge) {
-            badge.className = 'report-pill-badge ready';
-            badge.textContent = '✓ Report Saved';
-          }
-          loadRecordsFromBackend();
-        } else {
-          showToast(data.message || "Failed to save report.", "#ef4444");
-        }
-      } catch (err) {
-        console.error("submitWorkReportOnly network error:", err);
-        showNetworkIssueNotification(
-          "Report Save Failed (Network Error)",
-          "Daily Work Report server par save nahi ho payi. Kripya apna internet connection check karein.",
-          () => submitWorkReportOnly()
-        );
-      }
-    }
-
-    function viewDailyReport(empName, date, reportText, submittedTime, category, devChanges) {
-      const modal = document.getElementById('reportViewModal');
-      const nameEl = document.getElementById('reportModalEmpName');
-      const metaEl = document.getElementById('reportModalMeta');
-      const catEl = document.getElementById('reportModalCategory');
-      const changesWrap = document.getElementById('reportModalChangesWrap');
-      const changesEl = document.getElementById('reportModalChanges');
-      const textEl = document.getElementById('reportModalText');
-
-      if (nameEl) nameEl.textContent = `${empName}'s Work & Development Report`;
-      if (metaEl) metaEl.textContent = `Date: ${date} ${submittedTime ? '| Submitted at: ' + submittedTime : ''}`;
-      if (catEl) catEl.textContent = category || 'Development';
-
-      if (devChanges && devChanges.trim().length > 0) {
-        if (changesWrap) changesWrap.style.display = 'block';
-        if (changesEl) changesEl.textContent = devChanges;
-      } else {
-        if (changesWrap) changesWrap.style.display = 'none';
-      }
-
-      if (textEl) textEl.textContent = reportText;
-      if (modal) modal.style.display = 'flex';
-    }
-
-    function closeReportModal(event) {
-      if (event && event.target && event.target !== event.currentTarget && !event.target.classList.contains('report-modal-close')) {
-        return;
-      }
-      const modal = document.getElementById('reportViewModal');
-      if (modal) modal.style.display = 'none';
-    }
-
-    // --- PUNCH OUT SUBMISSION ---
+    // --- PUNCH OUT SUBMISSION (NO DAILY REPORT REQUIRED) ---
     async function punchOutAttendance() {
       const empId = localStorage.getItem('empId');
       const empName = localStorage.getItem('empName') || 'Employee';
       const message = document.getElementById('message');
       const btnOut = document.getElementById('btnPunchOut');
-      const reportBox = document.getElementById('workReportSection');
-      const reportInput = document.getElementById('dailyWorkReportInput');
-      const catSelect = document.getElementById('workCategorySelect');
-      const changesInput = document.getElementById('developmentChangesInput');
-
-      const workReport = (reportInput ? reportInput.value : '').trim();
-      const workCategory = catSelect ? catSelect.value : 'Development & Code Changes';
-      const developmentChanges = (changesInput ? changesInput.value : '').trim();
 
       if (!empId || empId === 'undefined' || empId === 'null') {
         showToast("Please log in first to punch out.", "#ef4444");
@@ -2900,23 +2749,7 @@
         return;
       }
 
-      // 1. Mandatory Daily Work & Development Report Validation (BYPASSED WHEN LUNCH IS ACTIVE)
-      if (!isLunchActive && (!workReport || workReport.length < 5)) {
-        openReportForm();
-        message.textContent = "❌ Punch Out Blocked: Please enter your Daily Work & Development Report before Punch Out.";
-        showToast("⚠️ Daily Work Report required! Enter tasks/development changes before Punch Out.", "#ef4444", 4500);
-        if (reportBox) {
-          reportBox.classList.add('report-error');
-          setTimeout(() => reportBox.classList.remove('report-error'), 3000);
-          reportBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        if (reportInput) {
-          reportInput.focus();
-        }
-        return;
-      }
-
-      // 2. Selfie check (BYPASSED WHEN LUNCH IS ACTIVE)
+      // Selfie check (bypassed if Lunch is active)
       if (!isLunchActive && !selfieData) {
         if (stream) {
           try { takeSelfie(); } catch (e) {}
@@ -2941,7 +2774,6 @@
         } catch (e) {}
       }
 
-      // 3. GPS check (if not available, fallback for office)
       if (!gps && !isLunchActive) {
         gps = {
           lat: OFFICE_CONFIG.lat || 28.59867,
@@ -2952,19 +2784,20 @@
         };
       }
 
-      // 4. Geofence check only if NOT in Home mode and NOT in Lunch mode
+      // Geofence check strictly 100m (unless Home mode or Lunch mode)
       const atOfficeOut = gps ? isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address) : true;
-      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps && gps.distanceMeters > 500) {
+      const maxRadiusOut = OFFICE_CONFIG.radiusMeters || 100;
+      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps && gps.distanceMeters > maxRadiusOut) {
         const dist = gps.distanceMeters;
-        message.textContent = `Punch Out Blocked: You are ${dist}m away from the office campus.`;
-        showToast(`You are outside office boundary! (${dist}m away)`, "#ef4444", 4500);
+        if (message) message.textContent = `Punch Out Blocked: You are ${dist}m away from the office campus (${maxRadiusOut}m allowed).`;
+        showToast(`You are outside office boundary (${dist}m away). Allowed within ${maxRadiusOut}m!`, "#ef4444", 4500);
         return;
       }
 
       btnOut.disabled = true;
-      message.textContent = isLunchActive 
-        ? "Recording Lunch break (Selfie & report bypassed)..." 
-        : "Recording Punch Out with selfie and Development Report verification...";
+      if (message) message.textContent = isLunchActive 
+        ? "Recording Lunch break..." 
+        : "Recording Punch Out...";
 
       try {
         const response = await fetch(`${API_BASE}/api/attendance/punch-out`, {
@@ -2978,9 +2811,6 @@
             isLunch: isLunchActive,
             breakType: isLunchActive ? 'Lunch' : 'Normal',
             lunchMode: isLunchActive,
-            workCategory: isLunchActive ? 'Lunch Break' : workCategory,
-            workReport: workReport || (isLunchActive ? 'Lunch Break taken' : ''),
-            developmentChanges: developmentChanges,
             selfie: selfieData || '',
             location: {
               address: gps?.address || (isHomeModeActive ? 'Home Location' : 'Office Location'),
@@ -2996,24 +2826,16 @@
         btnOut.disabled = false;
 
         if (response.ok && result.success) {
+          const cleanOutTime = formatCleanISTTime(result.logoutTime || result.punchOutTime) || formatCleanISTTime(new Date());
           if (isLunchActive || result.isLunch) {
-            message.textContent = `🍱 Lunch break marked at ${result.logoutTime || result.punchOutTime}! (Report aur selfie require nahi thi)`;
-            showToast(`🍱 Lunch Break Recorded at ${result.logoutTime || result.punchOutTime}! (Report & selfie bypassed)`, "#f59e0b", 4500);
+            if (message) message.textContent = `🍱 Lunch break marked at ${cleanOutTime}!`;
+            showToast(`🍱 Lunch Break Recorded at ${cleanOutTime}!`, "#f59e0b", 4500);
           } else {
-            message.textContent = `✓ Punch Out and Daily Development Report recorded successfully at ${result.logoutTime || result.punchOutTime}!`;
-            showToast(`🚪 Punch Out & Development Report Saved at ${result.logoutTime || result.punchOutTime}!`, "#16a34a", 4500);
+            if (message) message.textContent = `✓ Punch Out recorded successfully at ${cleanOutTime}!`;
+            showToast(`🚪 Punch Out Recorded at ${cleanOutTime}!`, "#16a34a", 4500);
           }
 
-          if (reportInput) {
-            reportInput.value = '';
-            handleReportInput();
-          }
-          if (changesInput) {
-            changesInput.value = '';
-          }
-
-          // Instantly update local table record in memory
-          const cleanOutTime = result.logoutTime || result.punchOutTime;
+          // Instantly update local table record in memory for 0ms lag
           const targetId = result.empId || empId;
           const foundIdx = rawFetchedRecords.findIndex(r => 
             (r.empId && String(r.empId).toUpperCase() === String(targetId).toUpperCase()) ||
@@ -3022,20 +2844,40 @@
           if (foundIdx >= 0) {
             rawFetchedRecords[foundIdx].logoutTime = cleanOutTime;
             rawFetchedRecords[foundIdx].punchOutTime = cleanOutTime;
-            if (workReport) rawFetchedRecords[foundIdx].workReport = workReport;
-            if (developmentChanges) rawFetchedRecords[foundIdx].developmentChanges = developmentChanges;
+            rawFetchedRecords[foundIdx].punchOut = new Date();
+            filterLocalRecords();
+            updateEmployeeLiveStatus();
+          } else {
+            const rawInTime = result?.loginTime || result?.punchTime || cleanOutTime;
+            const newRecord = (result && result.data) ? result.data : {
+              _id: (result && result._id) || 'rec_' + Date.now(),
+              empId: targetId,
+              empName: (result && result.empName) || empName,
+              status: 'Present',
+              isHalfDay: false,
+              date: (result && result.date) || new Date().toISOString().slice(0, 10),
+              punchDate: formatCleanISTDate(result?.punchDate || result?.date || new Date()),
+              loginTime: formatCleanISTTime(rawInTime) || cleanOutTime,
+              logoutTime: cleanOutTime,
+              punchInTime: formatCleanISTTime(rawInTime) || cleanOutTime,
+              punchOutTime: cleanOutTime,
+              punchOut: new Date(),
+              location: gps,
+              logoutLocation: gps
+            };
+            rawFetchedRecords.unshift(newRecord);
             filterLocalRecords();
             updateEmployeeLiveStatus();
           }
 
           loadRecordsFromBackend(true);
         } else {
-          message.textContent = result.message || "Punch Out failed.";
+          if (message) message.textContent = result.message || "Punch Out failed.";
           showToast(result.message || "Failed to record punch out.", "#ef4444", 4500);
         }
       } catch (err) {
         btnOut.disabled = false;
-        message.textContent = "Server error during Punch Out.";
+        if (message) message.textContent = "Server error during Punch Out.";
         console.error("punchOutAttendance network error:", err);
         showNetworkIssueNotification(
           "Punch Out Failed (Network Error)",
@@ -3052,7 +2894,7 @@
       const currentFilter = filterSelect.value; // 'today', 'all', or 'super-admin'
 
       if (!silent) {
-        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 22px; color:#64748b;">⚡ Loading fast attendance data...</td></tr>';
+        recordsEl.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 22px; color:#64748b;">⚡ Loading fast attendance data...</td></tr>';
       }
 
       try {
@@ -3071,7 +2913,7 @@
         updateEmployeeLiveStatus();
       } catch (err) {
         console.error('Fetch error:', err);
-        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; color:#ef4444;">Failed to load attendance records (Network Error). <button type="button" onclick="loadRecordsFromBackend()" style="margin-left:8px; background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:12px; cursor:pointer;">Retry</button></td></tr>';
+        recordsEl.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color:#ef4444;">Failed to load attendance records (Network Error). <button type="button" onclick="loadRecordsFromBackend()" style="margin-left:8px; background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:12px; cursor:pointer;">Retry</button></td></tr>';
         if (!navigator.onLine) {
           showNetworkIssueNotification(
             "Offline Mode Active",
@@ -3087,58 +2929,118 @@
       const searchEl = document.getElementById("search");
       const q = (searchEl.value || '').trim().toLowerCase();
 
-      const filtered = rawFetchedRecords.filter(x => {
+      // Deduplicate so each employee strictly appears once in the list
+      const dedupMap = new Map();
+      for (const item of rawFetchedRecords) {
+        const rawId = (item.empId && item.empId !== 'undefined' && item.empId !== 'null') ? String(item.empId).trim() : '';
+        const rawName = (item.empName && item.empName !== 'undefined' && item.empName !== 'null') ? String(item.empName).trim() : '';
+        const key = rawId ? rawId.toUpperCase() : (rawName ? rawName.toUpperCase() : 'UNKNOWN');
+
+        if (!dedupMap.has(key)) {
+          dedupMap.set(key, { ...item });
+        } else {
+          const cur = dedupMap.get(key);
+          // Keep earliest punch in
+          if (!cur.punchIn || (item.punchIn && new Date(item.punchIn) < new Date(cur.punchIn))) {
+            cur.punchIn = item.punchIn;
+            cur.loginTime = item.loginTime || cur.loginTime;
+          }
+          // Keep latest punch out
+          if (item.punchOut || item.logoutTime) {
+            cur.punchOut = item.punchOut || cur.punchOut;
+            cur.logoutTime = item.logoutTime || cur.logoutTime;
+            cur.punchOutTime = item.punchOutTime || cur.punchOutTime;
+          }
+          // Merge lunch state
+          if (item.isOnLunch) {
+            cur.isOnLunch = true;
+            cur.lunchStartTime = item.lunchStartTime || cur.lunchStartTime;
+          }
+          if (item.lunchBreaks && item.lunchBreaks.length > (cur.lunchBreaks ? cur.lunchBreaks.length : 0)) {
+            cur.lunchBreaks = item.lunchBreaks;
+            cur.lunchDuration = item.lunchDuration;
+            cur.lunchDurationFormatted = item.lunchDurationFormatted;
+          }
+          // Status priority
+          if (item.isHalfDay || item.status === 'Half Day') {
+            cur.isHalfDay = true;
+            cur.status = 'Half Day';
+          }
+        }
+      }
+
+      const deduplicatedRecords = Array.from(dedupMap.values());
+
+      const filtered = deduplicatedRecords.filter(x => {
         if (!q) return true;
-        const text = `${x.empName || ''} ${x.empId || ''} ${x.status || ''} ${x.workReport || ''} ${x.developmentChanges || ''} ${x.workCategory || ''}`.toLowerCase();
+        const text = `${x.empName || ''} ${x.empId || ''} ${x.status || ''}`.toLowerCase();
         return text.includes(q);
       });
 
       if (filtered.length === 0) {
-        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 26px; color:#64748b;">No attendance or development records found.</td></tr>';
+        recordsEl.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 26px; color:#64748b;">No attendance records found for today.</td></tr>';
       } else {
         recordsEl.innerHTML = filtered.map(x => {
           const displayId = (x.empId && x.empId !== 'undefined' && x.empId !== 'null') ? x.empId : '-';
+          const isAbsent = x.isAbsent || x.status === 'Absent';
           const isHalfDay = x.isHalfDay || (x.status === 'Half Day');
-          const statusBadge = isHalfDay 
-            ? `<span class="badge badge-halfday">⚠️ Half Day</span>` 
-            : `<span class="badge badge-present">✓ Present</span>`;
+          
+          let statusBadge = `<span class="badge badge-present">✓ Present</span>`;
+          if (isAbsent) {
+            statusBadge = `<span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-weight:700;">❌ Absent</span>`;
+          } else if (isHalfDay) {
+            statusBadge = `<span class="badge badge-halfday">⚠️ Half Day</span>`;
+          }
 
-          const cleanInTime = x.loginTime || x.punchTime || x.punchInTime || '--';
-          const cleanOutTime = x.logoutTime || x.punchOutTime;
-          const outDisplay = cleanOutTime 
-            ? `<b style="color:#ea580c;">${escapeHtml(cleanOutTime)}</b>` 
-            : `<span class="badge-active">Active (Not Punched Out)</span>`;
+          const rawIn = x.loginTime || x.punchTime || x.punchInTime || x.punchIn;
+          const cleanInTime = isAbsent ? '--' : (formatCleanISTTime(rawIn) || '--');
+
+          const rawOut = x.logoutTime || x.punchOutTime || x.punchOut;
+          const cleanOutTime = isAbsent ? null : formatCleanISTTime(rawOut);
+
+          const outDisplay = isAbsent 
+            ? `<span style="color:#94a3b8;">--</span>`
+            : (cleanOutTime 
+                ? `<b style="color:#ea580c;">${escapeHtml(cleanOutTime)}</b>` 
+                : `<span class="badge-active">Active (Not Punched Out)</span>`);
+
+          const rawDate = x.punchDate || x.date || x.punchIn || x.createdAt;
+          const cleanDate = formatCleanISTDate(rawDate) || '-';
 
           // Lunch status & duration display
-          const lunchDisplay = x.isOnLunch 
-            ? `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🟢 On Lunch (${x.lunchStartTime || 'Now'})</span>`
-            : (x.lunchDuration > 0 || (x.lunchBreaks && x.lunchBreaks.length > 0)
-                ? `<span style="color:#b45309; font-weight:700; font-size:12px;">🍱 ${x.lunchDurationFormatted || (x.lunchDuration ? x.lunchDuration + ' mins' : '')}</span>`
-                : `<span style="color:#94a3b8;">-</span>`);
+          const lunchDisplay = isAbsent
+            ? `<span style="color:#94a3b8;">-</span>`
+            : (x.isOnLunch 
+                ? `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🟢 On Lunch (${x.lunchStartTime || 'Now'})</span>`
+                : (x.lunchDuration > 0 || (x.lunchBreaks && x.lunchBreaks.length > 0)
+                    ? `<span style="color:#b45309; font-weight:700; font-size:12px;">🍱 ${x.lunchDurationFormatted || (x.lunchDuration ? x.lunchDuration + ' mins' : '')}</span>`
+                    : `<span style="color:#94a3b8;">-</span>`));
 
           const dist = x.location?.distanceMeters;
-          const isAtOfficeRecord = (dist !== undefined && dist <= 50) || 
+          const isAtOfficeRecord = (dist !== undefined && dist <= (OFFICE_CONFIG.radiusMeters || 100)) || 
             (x.location?.lat >= 28.5900 && x.location?.lat <= 28.6100 && x.location?.lng >= 77.4180 && x.location?.lng <= 77.4420) ||
             /nx\s*one|techzone\s*4|office/i.test(x.location?.address || '');
 
-          const distStr = isAtOfficeRecord || (dist !== undefined && dist <= 50)
-            ? `<span style="color:#16a34a; font-weight:700;">🟢 0m (In Office)</span>`
-            : (dist !== undefined && dist !== null && !isNaN(dist)
-                ? `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`
-                : `<span style="color:#16a34a; font-weight:700;">🟢 In Office</span>`);
+          const distStr = isAbsent 
+            ? `<span style="color:#94a3b8;">Not Checked In</span>`
+            : (isAtOfficeRecord || (dist !== undefined && dist <= (OFFICE_CONFIG.radiusMeters || 100))
+                ? `<span style="color:#16a34a; font-weight:700;">🟢 0m (In Office)</span>`
+                : (dist !== undefined && dist !== null && !isNaN(dist)
+                    ? `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`
+                    : `<span style="color:#16a34a; font-weight:700;">🟢 In Office</span>`));
 
           const inImgUrl = x.imageUrl;
           const outImgUrl = x.punchOutImageUrl;
 
           let selfiesHtml = '';
-          if (inImgUrl) {
+          if (inImgUrl && !isAbsent) {
             selfiesHtml += `
               <div>
                 <span class="selfie-tag">In Selfie</span>
                 <img src="${inImgUrl}" class="avatar-preview" onclick="openLightbox('${inImgUrl}')" alt="In selfie">
               </div>`;
           }
-          if (outImgUrl) {
+          if (outImgUrl && !isAbsent) {
             selfiesHtml += `
               <div>
                 <span class="selfie-tag">Out Selfie</span>
@@ -3149,45 +3051,19 @@
             selfiesHtml = '<span style="color:#94a3b8;">-</span>';
           }
 
-          const mapLink = (x.location?.lat && x.location?.lng)
+          const mapLink = (!isAbsent && x.location?.lat && x.location?.lng)
             ? `<br><a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}" style="color:#2563eb; font-size:11px; text-decoration:none;">📍 Map View</a>`
             : '';
-
-          // Work & Development Report Display Button or Badge
-          const reportContent = (x.workReport || '').trim();
-          const devChanges = (x.developmentChanges || '').trim();
-          const workCat = x.workCategory || 'Development & Code Changes';
-
-          let reportCellHtml = '';
-          if (reportContent) {
-            const safeName = escapeHtml(x.empName || 'Employee');
-            const safeDate = escapeHtml(x.punchDate || '-');
-            const safeTime = escapeHtml(x.reportSubmittedAt || x.logoutTime || x.punchOutTime || '');
-            const safeCat = escapeHtml(workCat);
-            const safeChanges = escapeHtml(devChanges);
-
-            reportCellHtml = `
-              <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
-                <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:10px;">${safeCat}</span>
-                ${devChanges ? `<div style="font-size:11px; color:#15803d; font-weight:700; line-height:1.2;">🚀 ${escapeHtml(devChanges.slice(0, 32))}${devChanges.length > 32 ? '...' : ''}</div>` : ''}
-                <button type="button" class="btn-view-report" onclick='viewDailyReport(${JSON.stringify(safeName)}, ${JSON.stringify(safeDate)}, ${JSON.stringify(reportContent)}, ${JSON.stringify(safeTime)}, ${JSON.stringify(safeCat)}, ${JSON.stringify(safeChanges)})'>
-                  📄 View Details
-                </button>
-              </div>`;
-          } else {
-            reportCellHtml = `<span style="font-size:11px; color:#94a3b8; font-style:italic;">Not submitted</span>`;
-          }
 
           return `<tr>
             <td>
               <strong style="font-size:13px; color:#0f172a;">${escapeHtml(x.empName || 'Employee')}</strong>
               <div style="font-size:11px; color:#64748b; font-weight:600;">${escapeHtml(displayId)}</div>
             </td>
-            <td style="white-space:nowrap; color:#475569;">${escapeHtml(x.punchDate || '-')}</td>
+            <td style="white-space:nowrap; color:#475569;">${escapeHtml(cleanDate)}</td>
             <td><b style="color:#2563eb;">${escapeHtml(cleanInTime)}</b></td>
             <td>${lunchDisplay}</td>
             <td>${outDisplay}</td>
-            <td>${reportCellHtml}</td>
             <td>${statusBadge}</td>
             <td>
               ${distStr}
@@ -3201,14 +3077,15 @@
       }
 
       // Update Top Stats Counters
-      const totalUnique = new Set(rawFetchedRecords.map(x => x.empId)).size;
-      const halfDayCount = rawFetchedRecords.filter(x => x.isHalfDay || x.status === 'Half Day').length;
-      const presentCount = rawFetchedRecords.length;
+      const totalUnique = deduplicatedRecords.length;
+      const presentCount = deduplicatedRecords.filter(x => !x.isAbsent && x.status !== 'Absent').length;
+      const halfDayCount = deduplicatedRecords.filter(x => x.isHalfDay || x.status === 'Half Day').length;
+      const turnoutPercent = totalUnique > 0 ? Math.round((presentCount / totalUnique) * 100) : 0;
 
       document.getElementById("total").textContent = totalUnique;
       document.getElementById("present").textContent = presentCount;
       document.getElementById("late").textContent = halfDayCount;
-      document.getElementById("percent").textContent = presentCount ? "100%" : "0%";
+      document.getElementById("percent").textContent = `${turnoutPercent}%`;
     }
 
     // Show live punch state for the logged-in employee on their card
@@ -3239,7 +3116,14 @@
           updateLunchUI(false);
         }
       } else {
-        badgeEl.innerHTML = `<span style="color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 8px; border-radius:6px; font-weight:600;">⚪ Not Punched In Today</span>`;
+        const win = evaluateCurrentPunchWindow();
+        if (!win.allowed) {
+          badgeEl.innerHTML = `<span style="color:#dc2626; background:#fef2f2; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-weight:700;">⛔ Punch In Blocked (1:30 PM par open hoga)</span>`;
+        } else if (win.isHalfDay) {
+          badgeEl.innerHTML = `<span style="color:#d97706; background:#fffbeb; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:700;">⚠️ Punch In Open (Half Day lagega)</span>`;
+        } else {
+          badgeEl.innerHTML = `<span style="color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 8px; border-radius:6px; font-weight:600;">⚪ Not Punched In Today</span>`;
+        }
         updateLunchUI(false);
       }
     }

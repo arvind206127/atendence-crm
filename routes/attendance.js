@@ -9,10 +9,10 @@ const User = require('../models/User');
 const Report = require('../models/Report');
 
 // Configuration from Environment
-const OFFICE_LATITUDE = parseFloat(process.env.OFFICE_LATITUDE) || 28.600556;
-const OFFICE_LONGITUDE = parseFloat(process.env.OFFICE_LONGITUDE) || 77.432778;
-const OFFICE_RADIUS_METERS = parseFloat(process.env.OFFICE_RADIUS_METERS) || 50;
-const GPS_MAX_ACCURACY_METERS = parseFloat(process.env.GPS_MAX_ACCURACY_METERS) || 50;
+const OFFICE_LATITUDE = parseFloat(process.env.OFFICE_LATITUDE) || 28.59867;
+const OFFICE_LONGITUDE = parseFloat(process.env.OFFICE_LONGITUDE) || 77.43187;
+const OFFICE_RADIUS_METERS = parseFloat(process.env.OFFICE_RADIUS_METERS) || 100;
+const GPS_MAX_ACCURACY_METERS = parseFloat(process.env.GPS_MAX_ACCURACY_METERS) || 350;
 const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
 
 // Helper to get protocol and host cleanly (supporting HTTPS behind Vercel/proxies)
@@ -67,19 +67,14 @@ function calculateDistanceToOffice(lat, lng) {
   return Math.min(d1, d2, d3, d4);
 }
 
-// Check if coordinates or address fall within the office boundary or NX One commercial campus
+// Check if coordinates fall within 100 meters of the office desk or campus
 function isInsideOfficeBoundary(lat, lng, address = '') {
   if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return false;
   const dist = calculateDistanceToOffice(lat, lng);
-  // Laptop Wi-Fi location in NX One / Greater Noida West drifts up to 450-500m
-  if (dist <= 500) return true;
+  if (dist <= OFFICE_RADIUS_METERS) return true;
 
-  // NX One Techzone 4 campus coordinates bounding box (covers Greater Noida West campus)
-  const isAtNXOne = (lat >= 28.5800 && lat <= 28.6200 && lng >= 77.4100 && lng <= 77.4500);
-  if (isAtNXOne) return true;
-
-  // Address check if reverse geocoded near office campus
-  if (address && /nx\s*one|techzone|greater\s*noida|noida\s*extension|bisrakh|gautam\s*buddha/i.test(address)) {
+  // Commercial campus pin check
+  if (address && /nx\s*one/i.test(address) && dist <= (OFFICE_RADIUS_METERS * 1.5)) {
     return true;
   }
 
@@ -102,14 +97,17 @@ function getISTDateString(dateObj = new Date()) {
 // Helpers for Indian Standard Time (Asia/Kolkata, UTC+5:30)
 function formatCleanISTTime(dateOrStr) {
   if (!dateOrStr) return null;
+  const s = String(dateOrStr).trim();
+  if (!s || s === 'null' || s === 'undefined' || s === '--' || s === '-' || s === 'Invalid Date') return null;
+  // If already formatted like "10:05:00 AM" or "01:30 PM", return as-is
+  if (/^\d{1,2}:\d{2}(:\d{2})?\s*(am|pm)?$/i.test(s)) {
+    return s;
+  }
   try {
-    if (typeof dateOrStr === 'string' && /^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(dateOrStr.trim())) {
-      return dateOrStr.trim();
-    }
     const d = new Date(dateOrStr);
     if (!isNaN(d.getTime())) {
       return d.toLocaleTimeString('en-IN', {
-        timeZone: ATTENDANCE_TIMEZONE,
+        timeZone: ATTENDANCE_TIMEZONE || 'Asia/Kolkata',
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -117,23 +115,34 @@ function formatCleanISTTime(dateOrStr) {
       });
     }
   } catch (e) {}
-  return String(dateOrStr);
+  return s;
 }
 
 function formatCleanISTDate(dateOrStr) {
   if (!dateOrStr) return null;
+  const s = String(dateOrStr).trim();
+  if (!s || s === 'null' || s === 'undefined' || s === '--' || s === '-' || s === 'Invalid Date') return null;
+  // If already DD/MM/YYYY or DD-MM-YYYY, return as-is
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(s)) return s;
   try {
     const d = new Date(dateOrStr);
     if (!isNaN(d.getTime())) {
       return d.toLocaleDateString('en-IN', {
-        timeZone: ATTENDANCE_TIMEZONE,
+        timeZone: ATTENDANCE_TIMEZONE || 'Asia/Kolkata',
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
       });
     }
   } catch (e) {}
-  return String(dateOrStr);
+  return s;
+}
+
+function formatAttendanceRecords(records = []) {
+  if (!Array.isArray(records)) {
+    records = records ? [records] : [];
+  }
+  return consolidateDailyRecords(records);
 }
 
 // Get Start and End of Current Day in Asia/Kolkata
@@ -158,8 +167,8 @@ function getISTDayRange(dateObj = new Date()) {
   }
 }
 
-// Check if current punch in time in Asia/Kolkata is after 10:05 AM (Cutoff for Half Day)
-function checkIsHalfDay(date = new Date()) {
+// Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule in Asia/Kolkata
+function evaluatePunchInWindow(date = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: ATTENDANCE_TIMEZONE,
@@ -169,22 +178,46 @@ function checkIsHalfDay(date = new Date()) {
     }).formatToParts(date);
     const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
     const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-    // After 10:05 AM: hour > 10, or (hour === 10 and minute > 5)
-    return (h > 10) || (h === 10 && m > 5);
-  } catch (e) {
-    try {
-      const timeStr = date.toLocaleTimeString('en-US', {
-        timeZone: ATTENDANCE_TIMEZONE,
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      const [h, m] = timeStr.split(':').map(Number);
-      return (h > 10) || (h === 10 && m > 5);
-    } catch (err) {
-      return false;
+    const totalMinutes = h * 60 + m;
+
+    // Window 1: Up to 10:05 AM (<= 605 minutes) -> Allowed, Present
+    if (totalMinutes <= 605) {
+      return {
+        allowed: true,
+        status: 'Present',
+        isHalfDay: false,
+        window: 'on_time',
+        message: 'On-time punch in recorded as Present'
+      };
     }
+
+    // Window 2: Between 10:05 AM and 1:30 PM (606 to 809 minutes) -> BLOCKED
+    if (totalMinutes < 810) {
+      return {
+        allowed: false,
+        blockedUntilHalfDay: true,
+        status: 'Absent',
+        window: 'morning_blocked',
+        nextAllowedTime: '1:30 PM',
+        message: 'Subah 10:05 AM ke baad Punch In band hai! Ab lunch ke baad 1:30 PM par hi Punch In hoga aur aapka Half Day lagega.'
+      };
+    }
+
+    // Window 3: 1:30 PM onwards (>= 810 minutes) -> Allowed, Half Day
+    return {
+      allowed: true,
+      status: 'Half Day',
+      isHalfDay: true,
+      window: 'afternoon_half_day',
+      message: 'Aapne lunch ke baad punch in kiya hai (10:05 AM cutoff exceed hone par). Aapka Half Day mark ho gaya hai!'
+    };
+  } catch (e) {
+    return { allowed: true, status: 'Present', isHalfDay: false };
   }
+}
+
+function checkIsHalfDay(date = new Date()) {
+  return evaluatePunchInWindow(date).isHalfDay;
 }
 
 // 0. Office Configuration API (GET /api/attendance/office-config)
@@ -196,12 +229,13 @@ router.get('/office-config', (req, res) => {
     officeRadiusMeters: OFFICE_RADIUS_METERS,
     gpsMaxAccuracyMeters: GPS_MAX_ACCURACY_METERS,
     timezone: ATTENDANCE_TIMEZONE,
-    halfDayCutoff: '10:05 AM'
+    halfDayCutoff: '10:05 AM',
+    lunchTime: '1:30 PM'
   });
 });
 
 // 1. Submit Attendance API (POST - Punch In / Login Attendance)
-router.post('/submit', async (req, res) => {
+router.post(['/submit', '/punch-in'], async (req, res) => {
   try {
     const { empId, empName, password, location, selfie } = req.body;
 
@@ -235,17 +269,17 @@ router.post('/submit', async (req, res) => {
       });
     }
 
-    // Calculate distance from office (Allow up to 450m for NX One Techzone 4 campus boundary)
+    // Calculate distance from office (Strictly 100m radius)
     const rawDistance = calculateDistanceToOffice(userLat, userLng);
-    const distanceMeters = (isAtOffice || rawDistance <= 500) ? 0 : rawDistance;
-    const maxRadius = Math.max(OFFICE_RADIUS_METERS, 500);
+    const distanceMeters = (isAtOffice || rawDistance <= OFFICE_RADIUS_METERS) ? 0 : rawDistance;
+    const maxRadius = OFFICE_RADIUS_METERS || 100;
     if (!isHome && !isAtOffice && rawDistance > maxRadius && !req.body.allowOutside) {
       return res.status(403).json({
         success: false,
         outsideRadius: true,
         distanceMeters: rawDistance,
         allowedRadiusMeters: maxRadius,
-        message: `Punch In rejected! You are ${rawDistance}m away from the office boundary. Punch In is allowed within ${maxRadius}m of the office campus or in Home Location mode.`
+        message: `Punch In rejected! You are ${rawDistance}m away from the office. Punch In is allowed within ${maxRadius}m of the office or in Work From Home mode.`
       });
     }
 
@@ -316,7 +350,7 @@ router.post('/submit', async (req, res) => {
       }
     }
 
-    // Check 10:05 AM Half Day Rule (supports testSimulatedTime during testing)
+    // Check 10:05 AM Cutoff & 1:30 PM Half Day Timing Rule
     let now = new Date();
     if (req.body.testSimulatedTime) {
       const customD = new Date(req.body.testSimulatedTime);
@@ -324,21 +358,37 @@ router.post('/submit', async (req, res) => {
         now = customD;
       }
     }
-    const isHalfDay = checkIsHalfDay(now);
-    const calculatedStatus = isHalfDay ? 'Half Day' : (req.body.status || 'Present');
 
-    // Save base64 image as file if possible
+    const timeRule = evaluatePunchInWindow(now);
+
+    // If between 10:05 AM and 1:30 PM: BLOCKED!
+    if (!timeRule.allowed && !req.body.bypassTimeRule) {
+      return res.status(400).json({
+        success: false,
+        blockedUntilHalfDay: true,
+        status: 'Absent',
+        nextAllowedTime: timeRule.nextAllowedTime,
+        message: timeRule.message,
+        notificationMessage: timeRule.message
+      });
+    }
+
+    const calculatedStatus = timeRule.status;
+    const isHalfDay = timeRule.isHalfDay;
+
+    // Relative image path
     let imageRelativePath = '';
     if (finalSelfie && finalSelfie.startsWith('data:image')) {
-      try {
-        const filename = `selfie-${finalEmpId}-${Date.now()}.jpg`;
-        const filePath = path.join(uploadsDir, filename);
-        const base64Data = finalSelfie.replace(/^data:image\/\w+;base64,/, '');
-        fs.writeFileSync(filePath, base64Data, 'base64');
-        imageRelativePath = `/uploads/${filename}`;
-      } catch (err) {
-        imageRelativePath = '';
-      }
+      const filename = `selfie-${finalEmpId}-${Date.now()}.jpg`;
+      imageRelativePath = `/uploads/${filename}`;
+      // Save base64 image asynchronously (non-blocking for 0ms lag)
+      setImmediate(() => {
+        try {
+          const filePath = path.join(uploadsDir, filename);
+          const base64Data = finalSelfie.replace(/^data:image\/\w+;base64,/, '');
+          fs.writeFile(filePath, base64Data, 'base64', () => {});
+        } catch (err) {}
+      });
     }
 
     const loginTimeStr = formatCleanISTTime(now);
@@ -353,18 +403,33 @@ router.post('/submit', async (req, res) => {
 
     const userOrgId = req.body?.organizationId || (user && user.organizationId) || 'org_advmen_platform';
 
-    // Find if today already has a record for this employee (e.g. from login)
-    const { startOfDay, endOfDay } = getISTDayRange(now);
+    // Find if today already has a record for this employee - strictly update in place!
+    const { startOfDay, endOfDay, istDateStr } = getISTDayRange(now);
+    const idRegex = new RegExp(`^${finalEmpId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const nameRegex = new RegExp(`^${finalEmpName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
     let record = await Attendance.findOne({
-      $or: [
-        { empId: finalEmpId },
-        { empName: finalEmpName }
-      ],
-      createdAt: { $gte: startOfDay, $lte: endOfDay }
+      $and: [
+        {
+          $or: [
+            { empId: idRegex },
+            { employeeId: idRegex },
+            { empName: nameRegex },
+            { userName: nameRegex },
+            { name: nameRegex }
+          ]
+        },
+        {
+          $or: [
+            { date: istDateStr },
+            { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+            { punchIn: { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        }
+      ]
     }).sort({ createdAt: -1 });
 
     if (!record) {
-      const istDate = getISTDateString(now);
       record = new Attendance({
         empId: finalEmpId,
         empName: finalEmpName,
@@ -372,11 +437,11 @@ router.post('/submit', async (req, res) => {
         userName: finalEmpName,
         name: finalEmpName,
         userId: user ? user._id.toString() : (finalEmpId ? finalEmpId : undefined),
-        date: istDate,
+        date: istDateStr,
         organizationId: userOrgId,
         status: calculatedStatus,
         isHalfDay: isHalfDay,
-        halfDayReason: isHalfDay ? 'Punched in after 10:05 AM cutoff' : '',
+        halfDayReason: isHalfDay ? 'Punched in at/after 1:30 PM (Morning cutoff 10:05 AM exceeded)' : '',
         halfDayNotificationSent: isHalfDay,
         location: savedLocation,
         selfie: finalSelfie,
@@ -387,14 +452,15 @@ router.post('/submit', async (req, res) => {
         logoutTime: null
       });
     } else {
+      // UPDATE IN PLACE - NEVER DUPLICATE ROW FOR SAME EMPLOYEE ON SAME DAY
       record.status = calculatedStatus;
       record.isHalfDay = isHalfDay;
       record.employeeId = finalEmpId;
       record.userName = finalEmpName;
       record.name = finalEmpName;
-      if (!record.date) record.date = getISTDateString(now);
+      if (!record.date) record.date = istDateStr;
       if (user && !record.userId) record.userId = user._id.toString();
-      if (isHalfDay) record.halfDayReason = 'Punched in after 10:05 AM cutoff';
+      if (isHalfDay) record.halfDayReason = 'Punched in at/after 1:30 PM (Morning cutoff 10:05 AM exceeded)';
       record.location = savedLocation;
       if (finalSelfie) record.selfie = finalSelfie;
       if (imageRelativePath) record.imageUrl = imageRelativePath;
@@ -405,12 +471,17 @@ router.post('/submit', async (req, res) => {
 
     await record.save();
 
-    // Explicitly guarantee update in 'attendance' (singular) collection too (non-blocking)
+    // Real-time non-blocking sync with singular 'attendance' collection (for Sales CRM / Super Admin)
     setImmediate(async () => {
       try {
         const cleanDoc = record.toObject ? record.toObject() : { ...record };
-        await mongoose.connection.db.collection('attendance').updateOne(
-          { _id: record._id },
+        await mongoose.connection.db.collection('attendances').updateOne(
+          {
+            $or: [
+              { _id: record._id },
+              { empId: idRegex, date: istDateStr }
+            ]
+          },
           { $set: cleanDoc },
           { upsert: true }
         );
@@ -466,6 +537,10 @@ router.post('/punch-out', async (req, res) => {
     const location = req.body?.location || null;
     const selfie = req.body?.selfie || null;
     const isLunch = req.body?.isLunch === true || req.body?.breakType === 'Lunch' || req.body?.lunchMode === true || req.body?.action === 'lunch';
+    const workReport = req.body?.workReport || '';
+    const workCategory = req.body?.workCategory || '';
+    const developmentChanges = req.body?.developmentChanges || '';
+    const taskSummary = req.body?.taskSummary || '';
 
     // Selfie is mandatory for regular punch out, but BYPASSED if lunch is active
     if (!isLunch && !selfie) {
@@ -502,29 +577,15 @@ router.post('/punch-out', async (req, res) => {
       });
     }
 
-    // Daily Work & Development Report Validation (Bypassed when lunch is active)
-    const workCategory = req.body?.workCategory || (isLunch ? 'Lunch Break' : 'Development & Code Changes');
-    const workReport = (req.body?.workReport || req.body?.report || req.body?.dailyReport || req.body?.workSummary || (isLunch ? 'Lunch break taken' : '')).trim();
-    const developmentChanges = (req.body?.developmentChanges || req.body?.changes || '').trim();
-    const taskSummary = (req.body?.taskSummary || (isLunch ? 'Lunch break' : '')).trim();
-
-    if (!isLunch && (!workReport || workReport.length < 5)) {
-      return res.status(400).json({
-        success: false,
-        requiresReport: true,
-        message: 'Daily Work & Development Report is required. Please describe your tasks and development changes before Punch Out.'
-      });
-    }
-
-    // Geofence check for Punch Out (bypassed if isHome, isLunch, or isAtOfficeOut)
-    const maxRadiusOut = Math.max(OFFICE_RADIUS_METERS, 500);
+    // Geofence check for Punch Out (100m radius)
+    const maxRadiusOut = OFFICE_RADIUS_METERS || 100;
     if (!isHome && !isLunch && !isAtOfficeOut && rawDistanceOut > maxRadiusOut) {
       return res.status(403).json({
         success: false,
         outsideRadius: true,
         distanceMeters: rawDistanceOut,
         allowedRadiusMeters: maxRadiusOut,
-        message: `Punch Out rejected! You are ${rawDistanceOut}m away from the office boundary. Punch Out is allowed within ${maxRadiusOut}m of the office campus.`
+        message: `Punch Out rejected! You are ${rawDistanceOut}m away from the office. Punch Out is allowed within ${maxRadiusOut}m of the office campus.`
       });
     }
 
@@ -572,29 +633,61 @@ router.post('/punch-out', async (req, res) => {
       orConditions.push({ empName: { $regex: new RegExp(`^${trimmedId}$`, 'i') } });
     }
 
-    // Find latest open record (punchOut is null)
-    let record = null;
-    if (orConditions.length > 0) {
-      record = await Attendance.findOne({
-        $or: orConditions,
-        punchOut: null
-      }).sort({ createdAt: -1 });
-
-      if (!record) {
-        record = await Attendance.findOne({
-          $or: orConditions
-        }).sort({ createdAt: -1 });
-      }
-    } else {
-      record = await Attendance.findOne({ punchOut: null }).sort({ createdAt: -1 });
-    }
-
     let now = new Date();
     if (req.body.testSimulatedTime) {
       const customD = new Date(req.body.testSimulatedTime);
       if (!isNaN(customD.getTime())) now = customD;
     }
+    const { startOfDay, endOfDay, istDateStr } = getISTDayRange(now);
     const logoutTimeStr = formatCleanISTTime(now);
+
+    const todayFilter = {
+      $or: [
+        { date: istDateStr },
+        { punchIn: { $gte: startOfDay, $lte: endOfDay } },
+        { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+      ]
+    };
+
+    // Find latest open record (prioritize today's record first)
+    let record = null;
+    if (orConditions.length > 0) {
+      // 1. Try finding today's open record
+      record = await Attendance.findOne({
+        $and: [
+          { $or: orConditions },
+          todayFilter,
+          { punchOut: null }
+        ]
+      }).sort({ createdAt: -1 });
+
+      // 2. Try finding today's record even if punchOut was previously touched
+      if (!record) {
+        record = await Attendance.findOne({
+          $and: [
+            { $or: orConditions },
+            todayFilter
+          ]
+        }).sort({ createdAt: -1 });
+      }
+
+      // 3. Fallback: find any open record from yesterday/prior
+      if (!record) {
+        record = await Attendance.findOne({
+          $and: [
+            { $or: orConditions },
+            { punchOut: null }
+          ]
+        }).sort({ createdAt: -1 });
+      }
+    } else {
+      record = await Attendance.findOne({
+        $and: [
+          todayFilter,
+          { punchOut: null }
+        ]
+      }).sort({ createdAt: -1 });
+    }
 
     // Save punch out selfie to file if possible
     let punchOutImgRelative = '';
@@ -642,10 +735,10 @@ router.post('/punch-out', async (req, res) => {
         logoutLocation: savedLogoutLocation,
         punchOutSelfie: selfie,
         punchOutImageUrl: punchOutImgRelative || '',
-        workCategory: workCategory,
-        workReport: workReport,
-        developmentChanges: developmentChanges,
-        taskSummary: taskSummary,
+        workCategory: workCategory || 'General',
+        workReport: workReport || '',
+        developmentChanges: developmentChanges || '',
+        taskSummary: taskSummary || '',
         reportSubmittedAt: now
       });
       await record.save();
@@ -660,10 +753,10 @@ router.post('/punch-out', async (req, res) => {
       record.logoutLocation = savedLogoutLocation;
       record.punchOutSelfie = selfie;
       record.punchOutImageUrl = punchOutImgRelative || '';
-      record.workCategory = workCategory;
-      record.workReport = workReport;
-      record.developmentChanges = developmentChanges;
-      record.taskSummary = taskSummary;
+      if (workCategory) record.workCategory = workCategory;
+      if (workReport) record.workReport = workReport;
+      if (developmentChanges) record.developmentChanges = developmentChanges;
+      if (taskSummary) record.taskSummary = taskSummary;
       record.reportSubmittedAt = now;
       if (userOrgId) record.organizationId = userOrgId;
       if (isLunch) {
@@ -687,7 +780,7 @@ router.post('/punch-out', async (req, res) => {
     setImmediate(async () => {
       try {
         const cleanDoc = record.toObject ? record.toObject() : { ...record };
-        await mongoose.connection.db.collection('attendance').updateOne(
+        await mongoose.connection.db.collection('attendances').updateOne(
           { _id: record._id },
           { $set: cleanDoc },
           { upsert: true }
@@ -695,8 +788,8 @@ router.post('/punch-out', async (req, res) => {
       } catch (syncErr) {}
     });
 
-    // Save report data into dedicated Report collection in background
-    if (!isLunch || (workReport && workReport.length >= 5)) {
+    // Save report data into dedicated Report collection in background if report was submitted
+    if (!isLunch && workReport && workReport.length >= 5) {
       setImmediate(async () => {
         try {
           await Report.findOneAndUpdate(
@@ -706,15 +799,15 @@ router.post('/punch-out', async (req, res) => {
                 empId: record.empId,
                 empName: record.empName,
                 organizationId: record.organizationId || 'org_advmen_platform',
-                workCategory: record.workCategory,
-                workReport: record.workReport,
+                workCategory: record.workCategory || 'General',
+                workReport: record.workReport || '',
                 developmentChanges: record.developmentChanges || '',
                 taskSummary: record.taskSummary || '',
                 attendanceId: record._id,
                 date: formatCleanISTDate(now) || new Date().toISOString().slice(0, 10),
-                punchInTime: record.loginTime || formatCleanISTTime(record.punchIn),
+                punchInTime: formatCleanISTTime(record.loginTime || record.punchIn),
                 punchOutTime: logoutTimeStr,
-                workMode: req.body.workMode || (isHome ? 'Home' : 'Office'),
+                workMode: req.body?.workMode || (isHome ? 'Home' : 'Office'),
                 location: savedLogoutLocation,
                 status: 'Submitted',
                 submittedAt: now
@@ -728,11 +821,12 @@ router.post('/punch-out', async (req, res) => {
       });
     }
 
-    const inTime = record.loginTime || formatCleanISTTime(record.punchIn);
+    const inTime = formatCleanISTTime(record.loginTime || record.punchIn) || '--';
     const successMsg = isLunch
-      ? `Lunch break recorded successfully at ${logoutTimeStr} for ${record.empName}! (Report & selfie bypassed)`
-      : `Punch Out recorded successfully for ${record.empName}! Work & Development report saved.`;
+      ? `Lunch break recorded successfully at ${logoutTimeStr} for ${record.empName}!`
+      : `Punch Out recorded successfully at ${logoutTimeStr} for ${record.empName}!`;
 
+    const formattedRecord = formatAttendanceRecords([record])[0] || {};
     res.status(200).json({
       success: true,
       message: successMsg,
@@ -749,7 +843,10 @@ router.post('/punch-out', async (req, res) => {
       workReport: record.workReport,
       developmentChanges: record.developmentChanges,
       reportSubmittedAt: formatCleanISTTime(record.reportSubmittedAt || now),
-      distanceMeters: distanceMeters
+      distanceMeters: distanceMeters,
+      date: istDateStr,
+      punchDate: formatCleanISTDate(record.punchIn || now),
+      data: formattedRecord
     });
   } catch (err) {
     console.error('Error during punch out:', err);
@@ -763,30 +860,35 @@ router.post('/punch-out', async (req, res) => {
 
 // Helper to find today's active attendance record for an employee
 async function findTodayAttendanceRecord(empId, empName) {
-  const { startOfDay, endOfDay } = getISTDayRange();
+  const { startOfDay, endOfDay, istDateStr } = getISTDayRange();
   const trimmedId = empId ? String(empId).trim() : '';
   const cleanName = empName ? String(empName).trim() : '';
 
   const orConditions = [];
   if (trimmedId) {
     orConditions.push({ empId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } });
+    orConditions.push({ employeeId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } });
   }
   if (cleanName) {
     orConditions.push({ empName: { $regex: new RegExp(`^${cleanName}$`, 'i') } });
+    orConditions.push({ userName: { $regex: new RegExp(`^${cleanName}$`, 'i') } });
+    orConditions.push({ name: { $regex: new RegExp(`^${cleanName}$`, 'i') } });
   }
 
   if (orConditions.length === 0) return null;
 
   let record = await Attendance.findOne({
-    $or: orConditions,
-    createdAt: { $gte: startOfDay, $lte: endOfDay }
+    $and: [
+      { $or: orConditions },
+      {
+        $or: [
+          { date: istDateStr },
+          { punchIn: { $gte: startOfDay, $lte: endOfDay } },
+          { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+        ]
+      }
+    ]
   }).sort({ createdAt: -1 });
-
-  if (!record) {
-    record = await Attendance.findOne({
-      $or: orConditions
-    }).sort({ createdAt: -1 });
-  }
 
   return record;
 }
@@ -803,6 +905,25 @@ router.post(['/lunch/start', '/lunch-start'], async (req, res) => {
       return res.status(400).json({ success: false, message: 'Employee ID or Name is required for Lunch Break.' });
     }
 
+    // Geofence check: strictly within 100m radius of office (unless Home mode)
+    const isHome = req.body?.isHomeLocation === true || location?.isHome === true;
+    if (!isHome && location && location.lat !== undefined && location.lng !== undefined) {
+      const userLat = parseFloat(location.lat);
+      const userLng = parseFloat(location.lng);
+      const rawDist = calculateDistanceToOffice(userLat, userLng);
+      const isAtOffice = isInsideOfficeBoundary(userLat, userLng, location.address || '');
+      const maxRadius = OFFICE_RADIUS_METERS || 100;
+      if (!isAtOffice && rawDist > maxRadius) {
+        return res.status(403).json({
+          success: false,
+          outsideRadius: true,
+          distanceMeters: rawDist,
+          message: `Lunch action rejected! You are ${rawDist}m away. Lunch is allowed only within ${maxRadius}m of the office campus.`
+        });
+      }
+    }
+
+    const { istDateStr } = getISTDayRange();
     let record = await findTodayAttendanceRecord(empInput, cleanEmpName);
     const now = new Date();
     const timeStr = formatCleanISTTime(now);
@@ -813,6 +934,9 @@ router.post(['/lunch/start', '/lunch-start'], async (req, res) => {
       record = new Attendance({
         empId: finalId,
         empName: finalName,
+        employeeId: finalId,
+        userName: finalName,
+        date: istDateStr,
         status: 'Present',
         punchIn: now,
         loginTime: timeStr,
@@ -850,7 +974,7 @@ router.post(['/lunch/start', '/lunch-start'], async (req, res) => {
     setImmediate(async () => {
       try {
         const cleanDoc = record.toObject ? record.toObject() : { ...record };
-        await mongoose.connection.db.collection('attendance').updateOne(
+        await mongoose.connection.db.collection('attendances').updateOne(
           { _id: record._id },
           { $set: cleanDoc },
           { upsert: true }
@@ -885,9 +1009,28 @@ router.post(['/lunch/end', '/lunch-end'], async (req, res) => {
   try {
     const empInput = req.body?.empId || req.body?.employeeId || req.body?.email || req.body?.empName || req.body?.name;
     const cleanEmpName = req.body?.empName || req.body?.name || '';
+    const location = req.body?.location || null;
 
     if (!empInput && !cleanEmpName) {
       return res.status(400).json({ success: false, message: 'Employee ID or Name is required.' });
+    }
+
+    // Geofence check: strictly within 100m radius of office (unless Home mode)
+    const isHome = req.body?.isHomeLocation === true || location?.isHome === true;
+    if (!isHome && location && location.lat !== undefined && location.lng !== undefined) {
+      const userLat = parseFloat(location.lat);
+      const userLng = parseFloat(location.lng);
+      const rawDist = calculateDistanceToOffice(userLat, userLng);
+      const isAtOffice = isInsideOfficeBoundary(userLat, userLng, location.address || '');
+      const maxRadius = OFFICE_RADIUS_METERS || 100;
+      if (!isAtOffice && rawDist > maxRadius) {
+        return res.status(403).json({
+          success: false,
+          outsideRadius: true,
+          distanceMeters: rawDist,
+          message: `Lunch action rejected! You are ${rawDist}m away. Lunch end is allowed only within ${maxRadius}m of the office campus.`
+        });
+      }
     }
 
     let record = await findTodayAttendanceRecord(empInput, cleanEmpName);
@@ -924,7 +1067,7 @@ router.post(['/lunch/end', '/lunch-end'], async (req, res) => {
     setImmediate(async () => {
       try {
         const cleanDoc = record.toObject ? record.toObject() : { ...record };
-        await mongoose.connection.db.collection('attendance').updateOne(
+        await mongoose.connection.db.collection('attendances').updateOne(
           { _id: record._id },
           { $set: cleanDoc },
           { upsert: true }
@@ -1518,14 +1661,39 @@ router.get('/image/:id', async (req, res) => {
   }
 });
 
-// Helper to project and format records for ultra-fast API delivery
-function formatAttendanceRecords(records) {
-  return records.map(r => {
-    const createdAt = new Date(r.createdAt || r.punchIn || Date.now());
-    const punchDateString = formatCleanISTDate(r.punchIn || r.createdAt);
-    const punchOutDateString = r.punchOut ? formatCleanISTDate(r.punchOut) : null;
-    const loginTimeString = formatCleanISTTime(r.punchIn || r.loginTime || r.createdAt);
-    const logoutTimeString = (r.punchOut || r.logoutTime) ? formatCleanISTTime(r.punchOut || r.logoutTime) : null;
+// Consolidate attendance records so that every employee has STRICTLY ONE ROW per day
+function consolidateDailyRecords(records = [], arg2 = '', arg3 = '') {
+  let istDateStr = '';
+  let allUsers = [];
+  if (typeof arg2 === 'string') {
+    istDateStr = arg2;
+  } else if (Array.isArray(arg2)) {
+    allUsers = arg2;
+    if (typeof arg3 === 'string') istDateStr = arg3;
+  }
+  if (!istDateStr) {
+    istDateStr = getISTDateString();
+  }
+
+  const employeeMap = new Map();
+
+  for (const r of records) {
+    const rawId = (r.empId || r.employeeId || '').trim();
+    const rawName = (r.empName || r.name || r.userName || 'Employee').trim();
+    const key = (rawId && rawId !== 'undefined' && rawId !== 'null')
+      ? rawId.toUpperCase()
+      : rawName.toUpperCase();
+
+    const rawIn = r.loginTime || r.punchTime || r.punchInTime || r.punchIn;
+    const inTime = formatCleanISTTime(rawIn) || '--';
+
+    const rawOut = r.logoutTime || r.punchOutTime || r.punchOut;
+    const outTime = formatCleanISTTime(rawOut);
+
+    const rawDate = r.punchDate || r.date || r.punchIn || r.createdAt;
+    const cleanPunchDate = formatCleanISTDate(rawDate) || r.date || istDateStr;
+
+    const isHalf = Boolean(r.isHalfDay || r.status === 'Half Day');
 
     const lat = r.location?.lat;
     const lng = r.location?.lng;
@@ -1534,81 +1702,136 @@ function formatAttendanceRecords(records) {
 
     const inAtOffice = isInsideOfficeBoundary(lat, lng, r.location?.address);
     const inRawDist = r.location?.distanceMeters;
-    const finalInDist = (inAtOffice || (inRawDist !== undefined && inRawDist <= 50)) ? 0 : inRawDist;
+    const finalInDist = (inAtOffice || (inRawDist !== undefined && inRawDist <= (OFFICE_RADIUS_METERS || 100))) ? 0 : inRawDist;
 
     const outAtOffice = isInsideOfficeBoundary(outLat, outLng, r.logoutLocation?.address);
     const outRawDist = r.logoutLocation?.distanceMeters;
-    const finalOutDist = (outAtOffice || (outRawDist !== undefined && outRawDist <= 50)) ? 0 : outRawDist;
+    const finalOutDist = (outAtOffice || (outRawDist !== undefined && outRawDist <= (OFFICE_RADIUS_METERS || 100))) ? 0 : outRawDist;
 
-    return {
-      recordId: r._id,
-      _id: r._id,
-      empId: r.empId || 'EMP101',
-      empName: r.empName || 'Employee',
-      status: r.status || (r.isHalfDay ? 'Half Day' : 'Present'),
-      isHalfDay: !!r.isHalfDay || (r.status === 'Half Day'),
-      punchDate: punchDateString,
-      punchTime: loginTimeString,
-      loginTime: loginTimeString,
-      punchInTime: loginTimeString,
-      logoutTime: logoutTimeString,
-      punchOutTime: logoutTimeString,
-      punchInDate: punchDateString,
-      punchOutDate: punchOutDateString,
-      timestamp: createdAt.toISOString(),
-      punchIn: r.punchIn || r.createdAt,
-      punchOut: r.punchOut || null,
-      location: {
-        address: r.location?.address || 'N/A',
-        lat: lat,
-        lng: lng,
-        accuracy: r.location?.accuracy,
-        distanceMeters: finalInDist,
-        googleMapsUrl: (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null
-      },
-      logoutLocation: r.logoutLocation ? {
-        address: r.logoutLocation.address || 'N/A',
-        lat: outLat,
-        lng: outLng,
-        accuracy: r.logoutLocation.accuracy,
-        distanceMeters: finalOutDist,
-        googleMapsUrl: (outLat && outLng) ? `https://www.google.com/maps?q=${outLat},${outLng}` : null
-      } : null,
-      imageUrl: `/api/attendance/image/${r._id}`,
-      punchOutImageUrl: r.punchOut ? `/api/attendance/image/${r._id}?type=out` : null,
-      organizationId: r.organizationId || 'org_advmen_platform',
-      workCategory: r.workCategory || 'Development & Code Changes',
-      workReport: r.workReport || '',
-      developmentChanges: r.developmentChanges || '',
-      taskSummary: r.taskSummary || '',
-      reportSubmittedAt: r.reportSubmittedAt ? formatCleanISTTime(r.reportSubmittedAt) : null,
-      isOnLunch: Boolean(r.isOnLunch),
-      lunchStartTime: r.lunchStartTime ? formatCleanISTTime(r.lunchStartTime) : null,
-      lunchEndTime: r.lunchEndTime ? formatCleanISTTime(r.lunchEndTime) : null,
-      lunchDuration: r.lunchDuration || 0,
-      lunchDurationFormatted: r.lunchDurationFormatted || (r.lunchDuration ? `${r.lunchDuration} mins` : ''),
-      lunchBreaks: (r.lunchBreaks || []).map(b => ({
-        startTime: b.startTime,
-        endTime: b.endTime,
-        durationMinutes: b.durationMinutes || 0,
-        startStr: b.startStr || formatCleanISTTime(b.startTime),
-        endStr: b.endStr || (b.endTime ? formatCleanISTTime(b.endTime) : ''),
-        durationStr: b.durationStr || (b.durationMinutes ? `${b.durationMinutes} mins` : (b.endTime ? '0 mins' : 'In Progress')),
-        notes: b.notes || 'Lunch Break'
-      })),
-      createdAt: r.createdAt
-    };
-  });
+    if (!employeeMap.has(key)) {
+      employeeMap.set(key, {
+        recordId: r._id,
+        _id: r._id,
+        empId: rawId || (rawName ? `EMP-${rawName.toUpperCase().replace(/\s+/g, '')}` : 'EMP101'),
+        empName: rawName,
+        status: isHalf ? 'Half Day' : (r.status || 'Present'),
+        isHalfDay: isHalf,
+        isAbsent: r.status === 'Absent',
+        date: r.date || istDateStr,
+        punchDate: cleanPunchDate,
+        punchIn: r.punchIn || r.createdAt,
+        loginTime: inTime,
+        punchInTime: inTime,
+        punchTime: inTime,
+        punchOut: r.punchOut || null,
+        logoutTime: outTime,
+        punchOutTime: outTime,
+        isOnLunch: Boolean(r.isOnLunch),
+        lunchStartTime: r.lunchStartTime ? formatCleanISTTime(r.lunchStartTime) : null,
+        lunchEndTime: r.lunchEndTime ? formatCleanISTTime(r.lunchEndTime) : null,
+        lunchDuration: r.lunchDuration || 0,
+        lunchDurationFormatted: r.lunchDurationFormatted || (r.lunchDuration ? `${r.lunchDuration} mins` : ''),
+        lunchBreaks: (r.lunchBreaks || []).map(b => ({
+          startTime: b.startTime,
+          endTime: b.endTime,
+          durationMinutes: b.durationMinutes || 0,
+          startStr: b.startStr || formatCleanISTTime(b.startTime),
+          endStr: b.endStr || (b.endTime ? formatCleanISTTime(b.endTime) : ''),
+          durationStr: b.durationStr || (b.durationMinutes ? `${b.durationMinutes} mins` : (b.endTime ? '0 mins' : 'In Progress')),
+          notes: b.notes || 'Lunch Break'
+        })),
+        location: {
+          address: r.location?.address || 'Office Location',
+          lat: lat,
+          lng: lng,
+          accuracy: r.location?.accuracy,
+          distanceMeters: finalInDist,
+          googleMapsUrl: (lat && lng) ? `https://www.google.com/maps?q=${lat},${lng}` : null
+        },
+        logoutLocation: r.logoutLocation ? {
+          address: r.logoutLocation.address || 'Office Location',
+          lat: outLat,
+          lng: outLng,
+          accuracy: r.logoutLocation.accuracy,
+          distanceMeters: finalOutDist,
+          googleMapsUrl: (outLat && outLng) ? `https://www.google.com/maps?q=${outLat},${outLng}` : null
+        } : null,
+        imageUrl: `/api/attendance/image/${r._id}`,
+        punchOutImageUrl: r.punchOut ? `/api/attendance/image/${r._id}?type=out` : null,
+        organizationId: r.organizationId || 'org_advmen_platform',
+        createdAt: r.createdAt
+      });
+    } else {
+      // Consolidate into same single row
+      const existing = employeeMap.get(key);
+
+      // Keep earliest punch in
+      if (!existing.punchIn || (r.punchIn && new Date(r.punchIn) < new Date(existing.punchIn))) {
+        existing.punchIn = r.punchIn;
+        if (inTime && inTime !== '--') {
+          existing.loginTime = inTime;
+          existing.punchTime = inTime;
+          existing.punchInTime = inTime;
+        }
+      }
+
+      // Keep latest punch out
+      if (r.punchOut || outTime) {
+        if (!existing.punchOut || (r.punchOut && new Date(r.punchOut) > new Date(existing.punchOut))) {
+          existing.punchOut = r.punchOut;
+          if (outTime) {
+            existing.logoutTime = outTime;
+            existing.punchOutTime = outTime;
+          }
+          existing.logoutLocation = {
+            address: r.logoutLocation?.address || 'Office Location',
+            lat: outLat,
+            lng: outLng,
+            accuracy: r.logoutLocation?.accuracy,
+            distanceMeters: finalOutDist,
+            googleMapsUrl: (outLat && outLng) ? `https://www.google.com/maps?q=${outLat},${outLng}` : null
+          };
+          existing.punchOutImageUrl = `/api/attendance/image/${r._id}?type=out`;
+        }
+      }
+
+      // Lunch status
+      if (r.isOnLunch) {
+        existing.isOnLunch = true;
+        existing.lunchStartTime = r.lunchStartTime ? formatCleanISTTime(r.lunchStartTime) : existing.lunchStartTime;
+      }
+      if (r.lunchBreaks && r.lunchBreaks.length > (existing.lunchBreaks ? existing.lunchBreaks.length : 0)) {
+        existing.lunchBreaks = r.lunchBreaks;
+        existing.lunchDuration = r.lunchDuration;
+        existing.lunchDurationFormatted = r.lunchDurationFormatted;
+      }
+
+      // Status priority: Half Day > Present
+      if (isHalf) {
+        existing.status = 'Half Day';
+        existing.isHalfDay = true;
+      } else if (existing.status !== 'Half Day' && r.status === 'Present') {
+        existing.status = 'Present';
+      }
+    }
+  }
+
+  return Array.from(employeeMap.values());
 }
 
-// 4. Fetch TODAY's Attendance API (GET /api/attendance/today) - ULTRA FAST & LIGHTWEIGHT
+// 4. Fetch TODAY's Attendance API (GET /api/attendance/today) - ONLY EMPLOYEES WHO MARKED ATTENDANCE
 router.get('/today', async (req, res) => {
   try {
     const { startOfDay, endOfDay, istDateStr } = getISTDayRange();
     const { empId } = req.query;
 
     const filter = {
-      createdAt: { $gte: startOfDay, $lte: endOfDay }
+      $or: [
+        { date: istDateStr },
+        { punchIn: { $gte: startOfDay, $lte: endOfDay } },
+        { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+        { punchOut: { $gte: startOfDay, $lte: endOfDay } }
+      ]
     };
 
     if (empId) {
@@ -1618,20 +1841,25 @@ router.get('/today', async (req, res) => {
       ];
     }
 
-    // Exclude large base64 selfie fields so the response is instant and small
     const records = await Attendance.find(filter)
       .select('-selfie -punchOutSelfie')
       .sort({ createdAt: -1 })
       .lean();
 
-    const formattedData = formatAttendanceRecords(records);
+    const consolidated = consolidateDailyRecords(records, istDateStr);
+
+    let finalData = consolidated;
+    if (empId) {
+      const qId = empId.trim().toUpperCase();
+      finalData = consolidated.filter(r => (r.empId && r.empId.toUpperCase() === qId));
+    }
 
     res.status(200).json({
       success: true,
       filter: 'today',
       date: istDateStr,
-      totalRecords: formattedData.length,
-      data: formattedData
+      totalRecords: finalData.length,
+      data: finalData
     });
   } catch (error) {
     console.error('Error fetching today attendance:', error);
@@ -1640,10 +1868,10 @@ router.get('/today', async (req, res) => {
 });
 
 // 5. Fetch Attendance & Logs API (GET /api/attendance/all or /api/attendance/logs)
-// Defaults to TODAY's records unless ?filter=all is explicitly requested
 router.get(['/all', '/logs'], async (req, res) => {
   try {
     const { empId, date, limit, filter: reqFilter } = req.query;
+    const { startOfDay, endOfDay, istDateStr } = getISTDayRange();
     const mongoFilter = {};
 
     if (empId) {
@@ -1654,19 +1882,21 @@ router.get(['/all', '/logs'], async (req, res) => {
       ];
     }
 
-    // If explicit date query passed
     if (date) {
       const searchDate = new Date(date);
-      const startOfDay = new Date(searchDate.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(searchDate.setHours(23, 59, 59, 999));
-      mongoFilter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      const sDay = new Date(searchDate.setHours(0, 0, 0, 0));
+      const eDay = new Date(searchDate.setHours(23, 59, 59, 999));
+      mongoFilter.createdAt = { $gte: sDay, $lte: eDay };
     } else if (reqFilter !== 'all') {
-      // By default, ONLY return TODAY's attendance records (as requested by user)
-      const { startOfDay, endOfDay } = getISTDayRange();
-      mongoFilter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      // Default to TODAY only
+      mongoFilter.$or = [
+        { date: istDateStr },
+        { punchIn: { $gte: startOfDay, $lte: endOfDay } },
+        { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+        { punchOut: { $gte: startOfDay, $lte: endOfDay } }
+      ];
     }
 
-    // Fast lean query excluding heavy base64 strings
     let query = Attendance.find(mongoFilter)
       .select('-selfie -punchOutSelfie')
       .sort({ createdAt: -1 })
@@ -1677,7 +1907,7 @@ router.get(['/all', '/logs'], async (req, res) => {
     }
 
     const records = await query.exec();
-    const formattedData = formatAttendanceRecords(records);
+    const formattedData = consolidateDailyRecords(records, date || istDateStr);
 
     res.status(200).json({
       success: true,

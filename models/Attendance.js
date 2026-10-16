@@ -7,6 +7,18 @@ const attendanceSchema = new mongoose.Schema({
     trim: true,
     index: true
   },
+  date: {
+    type: String,
+    index: true,
+    default: function() {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    }
+  },
   empName: {
     type: String,
     required: true,
@@ -139,6 +151,18 @@ const attendanceSchema = new mongoose.Schema({
   }
 });
 
+
+attendanceSchema.pre('save', function() {
+  if (!this.date) {
+    this.date = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(this.punchIn || this.createdAt || new Date());
+  }
+});
+
 attendanceSchema.index({ createdAt: -1 });
 attendanceSchema.index({ empId: 1, createdAt: -1 });
 
@@ -147,7 +171,7 @@ async function syncToAttendanceCollection(doc) {
   try {
     if (mongoose.connection && mongoose.connection.readyState === 1 && doc && doc._id) {
       const cleanDoc = doc.toObject ? doc.toObject() : { ...doc };
-      await mongoose.connection.db.collection('attendance').updateOne(
+      await mongoose.connection.db.collection('attendances').updateOne(
         { _id: cleanDoc._id },
         { $set: cleanDoc },
         { upsert: true }
@@ -180,5 +204,5 @@ attendanceSchema.post(['findOneAndUpdate', 'updateOne'], function () {
   });
 });
 
-module.exports = mongoose.model('Attendance', attendanceSchema);
+module.exports = mongoose.model('Attendance', attendanceSchema, 'attendances');
 module.exports.syncToAttendanceCollection = syncToAttendanceCollection;
