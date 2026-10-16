@@ -4,10 +4,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Attendance CRM - Selfie & GPS Attendance</title>
+  <title>Attendance CRM - Selfie & Geofenced Attendance</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <!-- Toastify CSS -->
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <style>
+    :root {
+      --bg-main: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --success-hover: #059669;
+      --warning: #f59e0b;
+      --warning-hover: #d97706;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 10px 25px -3px rgba(15, 23, 42, 0.12);
+      --radius: 14px;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -18,400 +42,419 @@
       width: 100%;
       max-width: 100%;
       overflow-x: hidden;
-      background: #f5f7fb;
-      color: #172033;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* AUTH SECTION (Login / Sign Up) */
+    /* AUTH SECTION */
     #authContainer {
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 16px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      padding: 20px;
+      background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 100%);
     }
 
     .auth-card {
-      background: #fff;
-      padding: 28px 24px;
-      border-radius: 16px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+      background: #ffffff;
+      padding: 36px 28px;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
       width: 100%;
-      max-width: 390px;
+      max-width: 410px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .auth-header {
       text-align: center;
-      margin-bottom: 22px;
+      margin-bottom: 24px;
     }
 
     .auth-header .logo-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 50px;
-      height: 50px;
-      background: #eff6ff;
-      border-radius: 12px;
-      font-size: 26px;
-      margin-bottom: 10px;
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-radius: 16px;
+      font-size: 28px;
+      margin-bottom: 12px;
       border: 1px solid #bfdbfe;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
     }
 
     .auth-header h2 {
-      font-size: 22px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
       color: #0f172a;
       font-weight: 700;
     }
 
     .auth-header p {
       font-size: 13px;
-      color: #64748b;
+      color: var(--text-muted);
       margin-top: 4px;
     }
 
+    .form-group {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .toggle-link {
+      text-align: center;
+      font-size: 13px;
+      color: var(--primary);
+      margin-top: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .toggle-link:hover {
+      text-decoration: underline;
+    }
+
+    /* HEADER */
     header {
-      background: #172554;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: #fff;
-      padding: 14px 20px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       width: 100%;
-      box-sizing: border-box;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
     }
 
     .header-brand {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-brand .brand-icon {
+      font-size: 26px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .header-brand h1 {
+      font-family: 'Outfit', sans-serif;
       font-size: 20px;
       font-weight: 700;
       line-height: 1.2;
       margin: 0;
-      white-space: nowrap;
+      letter-spacing: -0.3px;
     }
 
     .header-brand span {
       font-size: 12px;
-      opacity: 0.85;
-      margin: 0;
-      white-space: nowrap;
+      color: #94a3b8;
     }
 
     .header-right {
       display: flex;
       align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
+      gap: 12px;
     }
 
-    .user-greeting {
-      font-size: 12px;
-      color: #93c5fd;
-      font-weight: 500;
+    /* Live Digital Clock Badge */
+    .live-clock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      font-family: 'Outfit', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    .live-clock-badge .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseAnim 2s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     .header-badge {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       color: #fff;
       font-size: 12px;
       font-weight: 600;
       padding: 6px 14px;
       border-radius: 20px;
       cursor: pointer;
-      width: auto !important;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
 
     .header-badge:hover {
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(239, 68, 68, 0.25);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
     }
 
-    .crm-header-btn {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 20px;
-      cursor: pointer;
-      width: auto !important;
-      margin: 0;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
-      white-space: nowrap;
-    }
-
-    .crm-header-btn:hover {
-      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.55);
-    }
-
-    .crm-card-btn {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      border: 1px solid #1d4ed8;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 5px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      width: auto !important;
-      margin: 0;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
-      white-space: nowrap;
-    }
-
-    .crm-card-btn:hover {
-      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-      transform: translateY(-1px);
-    }
-
-    .employee-card-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
+    /* CONTAINER & STATS */
     .container {
       width: 100%;
-      max-width: 1180px;
+      max-width: 1240px;
       margin: 0 auto;
-      padding: 14px;
+      padding: 20px 16px;
     }
 
     .cards {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 14px;
+      margin-bottom: 20px;
       width: 100%;
     }
 
     .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 14px 16px;
-      box-shadow: 0 2px 10px #15203a10;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      border-left: 4px solid #2563eb;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--primary);
+    }
+
+    .card.card-success::before { background: var(--success); }
+    .card.card-warning::before { background: var(--warning); }
+    .card.card-purple::before { background: #8b5cf6; }
+
     .card small {
-      color: #64748b;
-      font-size: 11px;
+      color: var(--text-muted);
+      font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     .card strong {
-      font-size: clamp(20px, 4vw, 28px);
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(22px, 3.5vw, 30px);
       font-weight: 800;
-      color: #2563eb;
+      color: #0f172a;
     }
 
+    /* MAIN GRID */
     .grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 16px;
+      grid-template-columns: 470px minmax(0, 1fr);
+      gap: 20px;
       align-items: start;
       width: 100%;
-      min-width: 0;
+    }
+
+    @media (max-width: 990px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 520px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
     }
 
     .panel {
-      background: #fff;
-      border-radius: 12px;
-      padding: 18px;
-      box-shadow: 0 2px 10px #15203a10;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border-color);
       width: 100%;
       min-width: 0;
-      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f1f5f9;
     }
 
     .panel h2 {
-      font-size: 17px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
       font-weight: 700;
-      margin-bottom: 14px;
-      color: #1e293b;
+      color: #0f172a;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    /* Logged In Employee Info Banner */
+    /* Policy Status Pill (10:05 AM Rule) */
+    .rule-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .rule-pill.ontime {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .rule-pill.halfday {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    /* Logged In Employee Info Card (Clean - No Go to Dashboard or Logout buttons!) */
     .employee-info-card {
-      background: #f8fafc;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
       border: 1px solid #e2e8f0;
-      border-left: 4px solid #16a34a;
-      border-radius: 10px;
-      padding: 12px 14px;
+      border-left: 4px solid #10b981;
+      border-radius: 12px;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
-      gap: 10px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
     }
 
     .employee-info-left {
       display: flex;
       align-items: center;
       gap: 12px;
-      min-width: 0;
     }
 
     .emp-avatar {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: #dcfce7;
       color: #166534;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      flex-shrink: 0;
-    }
-
-    .emp-meta {
-      min-width: 0;
+      font-size: 22px;
+      border: 2px solid #bbf7d0;
     }
 
     .emp-meta strong {
       display: block;
-      font-size: 14px;
+      font-size: 15px;
       color: #0f172a;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-weight: 700;
     }
 
     .emp-meta span {
       display: inline-block;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: #2563eb;
       background: #eff6ff;
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin-top: 2px;
-    }
-
-    .switch-btn {
-      background: none;
-      border: 1px solid #cbd5e1;
-      padding: 5px 10px;
+      padding: 2px 8px;
       border-radius: 6px;
+      margin-top: 2px;
+      border: 1px solid #dbeafe;
+    }
+
+    .emp-status-badge {
       font-size: 11px;
-      font-weight: 600;
-      color: #64748b;
-      cursor: pointer;
-      width: auto;
-      margin: 0;
-      flex-shrink: 0;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 8px;
+      text-align: right;
     }
 
-    .switch-btn:hover {
-      background: #f1f5f9;
-      color: #0f172a;
-    }
-
-    label {
-      font-size: 12px;
-      font-weight: 600;
+    /* CAMERA SECTION */
+    label.field-label {
+      font-size: 13px;
+      font-weight: 700;
       display: block;
-      margin: 12px 0 5px;
-      color: #334155;
-    }
-
-    input, button, select {
-      font: inherit;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    input, select {
-      padding: 10px 12px;
-      border: 1px solid #d8dee9;
-      border-radius: 8px;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus, select:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-
-    button {
-      border: 0;
-      border-radius: 8px;
-      padding: 11px 16px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
-      margin-top: 8px;
-      display: inline-flex;
+      margin: 16px 0 6px;
+      color: #1e293b;
+      display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-
-    .primary {
-      background: #2563eb;
-      color: #fff;
-    }
-
-    .primary:hover {
-      background: #1d4ed8;
-    }
-
-    .secondary {
-      background: #e0e7ff;
-      color: #1e40af;
-    }
-
-    .secondary:hover {
-      background: #c7d2fe;
-    }
-
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      width: 100%;
+      justify-content: space-between;
     }
 
     .camera {
       width: 100%;
-      max-width: 100%;
       aspect-ratio: 4/3;
-      background: #0f172a;
-      border-radius: 10px;
+      background: #090d16;
+      border-radius: 12px;
       overflow: hidden;
       display: flex;
       align-items: center;
@@ -419,20 +462,22 @@
       color: #94a3b8;
       font-size: 13px;
       position: relative;
-      border: 1px solid #334155;
+      border: 2px dashed #334155;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
     }
 
     .camera-placeholder {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       text-align: center;
       padding: 20px;
     }
 
     .camera-placeholder .icon {
-      font-size: 40px;
+      font-size: 44px;
+      opacity: 0.8;
     }
 
     video {
@@ -444,234 +489,1076 @@
 
     .preview {
       width: 100%;
-      max-width: 100%;
+      max-height: 200px;
       aspect-ratio: 4/3;
       object-fit: cover;
       background: #000;
       border-radius: 10px;
+      border: 2px solid #10b981;
       display: none;
-      margin-top: 10px;
-      border: 2px solid #22c55e;
+      margin-top: 8px;
     }
 
-    .actions {
-      display: flex;
+    .camera-btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
       margin-top: 10px;
-      width: 100%;
     }
 
-    .actions button {
-      flex: 1 1 0;
-      min-width: 0;
-      margin-top: 0;
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .status {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-cam-open {
       background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-cam-open:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-cam-capture {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    .btn-cam-capture:hover {
+      background: #2563eb;
+    }
+
+    /* HOME LOCATION TOGGLE CARD */
+    .home-location-card {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .home-location-card.active {
+      background: #f0fdf4;
+      border-color: #86efac;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.18);
+    }
+
+    .home-location-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .home-location-left .home-icon {
+      font-size: 24px;
+      background: #eff6ff;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid #bfdbfe;
+      flex-shrink: 0;
+    }
+
+    .home-location-left strong {
+      display: block;
+      font-size: 13.5px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .home-location-left small {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .btn-home-toggle {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 9px 14px;
       font-size: 12px;
-      line-height: 1.5;
-      color: #475569;
-      border: 1px solid #e2e8f0;
-      word-break: break-word;
+      font-weight: 700;
+      background: #ffffff;
+      color: #334155;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      flex-shrink: 0;
+    }
+
+    .btn-home-toggle:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+
+    .btn-home-toggle.active {
+      background: #10b981;
+      color: #ffffff;
+      border-color: #059669;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+
+    .home-toggle-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      transition: background 0.2s;
+    }
+
+    .btn-home-toggle.active .home-toggle-dot {
+      background: #ffffff;
+      box-shadow: 0 0 6px #ffffff;
+    }
+
+    /* LOCATION & GEOFENCE STATUS BOX */
+    .geofence-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .geofence-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
+    .geofence-item strong {
+      color: #0f172a;
+      min-width: 70px;
+    }
+
+    .geofence-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11.5px;
+      margin-top: 4px;
+      align-self: flex-start;
+    }
+
+    .geofence-pill.inside {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .geofence-pill.outside {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .geofence-pill.warning {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .btn-location {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .btn-location:hover {
+      background: #bae6fd;
+    }
+
+    /* DUAL ACTION PUNCH BUTTONS (PUNCH IN & PUNCH OUT) */
+    .punch-actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    @media (max-width: 600px) {
+      .punch-actions-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .btn-punch-in {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      padding: 13px 14px;
+      font-size: 13.5px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-punch-in:hover:not(:disabled) {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+    }
+
+    .btn-lunch {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #ffffff;
+      padding: 13px 14px;
+      font-size: 13.5px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+      position: relative;
+    }
+
+    .btn-lunch:hover:not(:disabled) {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+    }
+
+    .btn-lunch.active {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+      animation: lunchPulseAnim 1.8s infinite;
+    }
+
+    @keyframes lunchPulseAnim {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .btn-punch-out {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: #ffffff;
+      padding: 13px 14px;
+      font-size: 13.5px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+    }
+
+    .btn-punch-out:hover:not(:disabled) {
+      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    }
+
+    /* Lunch Active Alert Banner */
+    .lunch-active-box {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1.5px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+      animation: fadeInLunch 0.3s ease;
+    }
+
+    @keyframes fadeInLunch {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn-end-lunch-inline {
+      background: #ea580c;
+      color: #ffffff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-end-lunch-inline:hover {
+      background: #c2410c;
+      transform: translateY(-1px);
+    }
+
+    /* Half Day Top Alert Banner */
+    .halfday-banner {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef2f2 100%);
+      border: 1.5px solid #fecaca;
+      border-left: 5px solid #ef4444;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.1);
+      animation: fadeInLunch 0.3s ease;
+    }
+
+    /* GLOBAL NETWORK ISSUE TOP BANNER */
+    .network-issue-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 999999;
+      background: linear-gradient(135deg, #b91c1c 0%, #dc2626 50%, #991b1b 100%);
+      color: #ffffff;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: 0 4px 20px rgba(185, 28, 28, 0.4);
+      animation: slideDownBanner 0.35s ease;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .network-issue-banner.online-restored {
+      background: linear-gradient(135deg, #059669 0%, #10b981 50%, #047857 100%);
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    @keyframes slideDownBanner {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .network-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .network-icon-pulse {
+      font-size: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      animation: netPulseAnim 1.5s infinite;
+    }
+
+    @keyframes netPulseAnim {
+      0% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255,255,255,0.6)); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(255,255,255,0.9)); }
+      100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255,255,255,0.6)); }
+    }
+
+    .network-banner-text strong {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    .network-banner-text span {
+      display: block;
+      font-size: 12.5px;
+      opacity: 0.95;
+      margin-top: 1px;
+    }
+
+    .network-banner-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-network-retry {
+      background: #ffffff;
+      color: #b91c1c;
+      border: none;
+      padding: 7px 15px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .btn-network-retry:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .network-issue-banner.online-restored .btn-network-retry {
+      color: #047857;
+    }
+
+    .btn-network-close {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .btn-network-close:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Modal Icon Pulse */
+    .network-modal-icon-wrap {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: #fee2e2;
+      border: 2px solid #fecaca;
+      color: #dc2626;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 16px;
+      animation: netPulseAnim 1.6s infinite;
+    }
+
+    .status-msg-box {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px dashed #cbd5e1;
+    }
+
+    /* ATTENDANCE RECORDS TABLE */
+    .table-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-input-wrap input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13px;
+      outline: none;
+      background: #f8fafc;
+    }
+
+    .search-input-wrap input:focus {
+      background: #fff;
+      border-color: var(--primary);
+    }
+
+    .filter-select {
+      width: auto;
+      min-width: 180px;
+      padding: 10px 12px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
     }
 
     .tablewrap {
       width: 100%;
-      max-width: 100%;
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      margin-top: 12px;
-      border: 1px solid #edf0f5;
-      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
     }
 
-    .table {
+    table.table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 480px;
-    }
-
-    .table th, .table td {
-      padding: 10px;
-      border-bottom: 1px solid #edf0f5;
+      font-size: 12.5px;
+      background: #fff;
       text-align: left;
-      font-size: 12px;
     }
 
-    .table th {
+    table.table thead th {
       background: #f8fafc;
-      color: #64748b;
-      font-weight: 600;
+      color: #475569;
+      font-weight: 700;
+      padding: 12px 14px;
+      border-bottom: 1.5px solid #e2e8f0;
       white-space: nowrap;
     }
 
+    table.table tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.15s;
+    }
+
+    table.table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    table.table tbody td {
+      padding: 12px 14px;
+      vertical-align: middle;
+      color: #1e293b;
+    }
+
+    /* Badges */
     .badge {
-      padding: 3px 8px;
-      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .badge-present {
       background: #dcfce7;
       color: #166534;
-      font-weight: 700;
-      font-size: 11px;
-      display: inline-block;
+      border: 1px solid #86efac;
     }
 
-    .toggle-link {
-      text-align: center;
-      margin-top: 14px;
-      font-size: 13px;
-      color: #2563eb;
+    .badge-halfday {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .badge-active {
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    .avatar-preview {
+      width: 44px;
+      height: 44px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1.5px solid #cbd5e1;
       cursor: pointer;
-      font-weight: 500;
+      transition: transform 0.2s;
     }
 
-    .toggle-link:hover {
-      text-decoration: underline;
+    .avatar-preview:hover {
+      transform: scale(1.15);
+      border-color: var(--primary);
     }
 
-    /* Responsive Breakpoints */
-    @media (max-width: 900px) {
-      .grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 14px;
-      }
-      .cards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-      }
+    .selfie-cell-flex {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    @media (max-width: 600px) {
-      header {
-        padding: 10px 14px;
-      }
-      .header-right {
-        gap: 6px;
-      }
-      .crm-header-btn {
-        padding: 5px 10px;
-        font-size: 11px;
-      }
-      .crm-card-btn {
-        padding: 4px 8px;
-        font-size: 10px;
-      }
-      .user-greeting {
-        display: none;
-      }
-      .header-brand h1 {
-        font-size: 16px;
-      }
-      .header-brand span {
-        font-size: 11px;
-      }
-      .container {
-        padding: 8px 10px;
-      }
-      .cards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-      .card {
-        padding: 10px 12px;
-      }
-      .card strong {
-        font-size: 20px;
-      }
-      .panel {
-        padding: 14px 12px;
-        border-radius: 10px;
-      }
-      .panel h2 {
-        font-size: 16px;
-        margin-bottom: 10px;
-      }
-      .row {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-      .actions {
-        flex-direction: column;
-        gap: 8px;
-      }
-      .actions button {
-        width: 100%;
-        padding: 11px 12px;
-        font-size: 13px;
-      }
-      .camera {
-        aspect-ratio: 4/3;
-        width: 100%;
-        max-width: 100%;
-      }
-      .preview {
-        max-width: 100%;
-      }
+    .selfie-tag {
+      font-size: 9px;
+      font-weight: 700;
+      color: #64748b;
+      display: block;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    /* LIGHTBOX MODAL FOR SELFIE ENLARGEMENT */
+    .lightbox-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .lightbox-content {
+      max-width: 90%;
+      max-height: 85%;
+      border-radius: 14px;
+      border: 2px solid #fff;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    /* DAILY WORK REPORT TOGGLE BUTTON STYLING */
+    .btn-report-toggle {
+      width: 100%;
+      margin-top: 14px;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      text-align: left;
+    }
+
+    .btn-report-toggle:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+    }
+
+    .btn-report-toggle.is-open {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .report-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .report-toggle-icon {
+      font-size: 20px;
+      background: #e2e8f0;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .btn-report-toggle.is-open .report-toggle-icon {
+      background: #dbeafe;
+    }
+
+    .report-toggle-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .report-toggle-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .report-toggle-subtitle {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 1px;
+    }
+
+    .report-toggle-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .report-pill-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.2px;
+      transition: all 0.2s;
+    }
+
+    .report-pill-badge.pending {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+    }
+
+    .report-pill-badge.ready {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+
+    .report-chevron {
+      font-size: 12px;
+      color: #64748b;
+      transition: transform 0.25s ease, color 0.2s;
+    }
+
+    .btn-report-toggle.is-open .report-chevron {
+      transform: rotate(180deg);
+      color: #2563eb;
+    }
+
+    .btn-save-report-inline {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-save-report-inline:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    /* DAILY WORK REPORT STYLING */
+    .work-report-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 13px 15px;
+      margin-top: 10px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .work-report-box.active-typing {
+      border-color: #3b82f6;
+      background: #f0f7ff;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .work-report-box.report-error {
+      border-color: #ef4444 !important;
+      background: #fef2f2 !important;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2) !important;
+      animation: shakeReport 0.4s ease-in-out;
+    }
+
+    @keyframes shakeReport {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .work-report-header {
+      margin-bottom: 8px;
+    }
+
+    .work-report-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .report-badge-req {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #dc2626;
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .work-report-sub {
+      display: block;
+      font-size: 11.5px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .work-report-textarea {
+      width: 100%;
+      min-height: 72px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #0f172a;
+      background: #ffffff;
+      outline: none;
+      resize: vertical;
+      line-height: 1.45;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+
+    .work-report-textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .work-report-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 11.5px;
+    }
+
+    .report-status-pending {
+      font-size: 11px;
+      font-weight: 700;
+      color: #ea580c;
+    }
+
+    .report-status-ready {
+      font-size: 11px;
+      font-weight: 700;
+      color: #16a34a;
+    }
+
+    .btn-view-report {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .btn-view-report:hover {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      transform: translateY(-1px);
+    }
+
+    /* REPORT VIEW MODAL */
+    .report-modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      padding: 22px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      border: 1px solid #e2e8f0;
+      position: relative;
+    }
+
+    .report-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 14px;
+    }
+
+    .report-modal-close {
+      background: #f1f5f9;
+      border: none;
+      font-size: 20px;
+      line-height: 1;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .report-modal-close:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .report-modal-text {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 13.5px;
+      color: #1e293b;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 8px;
     }
   </style>
 </head>
 
 <body>
 
+  <!-- GLOBAL NETWORK ISSUE NOTIFICATION TOP BANNER -->
+  <div id="globalNetworkBanner" class="network-issue-banner" style="display:none;">
+    <div class="network-banner-content">
+      <span class="network-icon-pulse">📶⚠️</span>
+      <div class="network-banner-text">
+        <strong id="networkBannerTitle">Network Issue Detected!</strong>
+        <span id="networkBannerDesc">Internet connection slow ya disconnect ho gaya hai. Server se connect nahi ho pa raha hai.</span>
+      </div>
+    </div>
+    <div class="network-banner-actions">
+      <button type="button" class="btn-network-retry" onclick="retryNetworkConnection()">
+        <span>🔄</span> Retry Connection
+      </button>
+      <button type="button" class="btn-network-close" onclick="dismissNetworkBanner()" title="Dismiss">✕</button>
+    </div>
+  </div>
+
   <!-- AUTH SECTION (Login / Sign Up) -->
   <div id="authContainer">
     <div class="auth-card">
       <div class="auth-header">
         <div class="logo-badge">🏢</div>
-        <h2 id="authTitle">Employee Login</h2>
+        <h2 id="authTitle">Employee Attendance</h2>
         <p id="authSubtitle">Enter your credentials to mark attendance</p>
       </div>
 
-      <div id="nameField" style="display:none;">
-        <label for="authName">Full Name *</label>
-        <input id="authName" placeholder="Enter your full name">
+      <div class="form-group" id="nameField" style="display:none;">
+        <label>Full Name *</label>
+        <input type="text" id="authName" placeholder="e.g. Rahul Sharma">
       </div>
 
-      <label id="idOrEmailLabel" for="authIdOrEmail">Employee ID *</label>
-      <input id="authIdOrEmail" placeholder="e.g. EMP101" autocomplete="username">
+      <div class="form-group">
+        <label id="idOrEmailLabel">Employee ID or Email *</label>
+        <input type="text" id="authIdOrEmail" placeholder="e.g. EMP-2026-0022 or name@example.com">
+      </div>
 
-      <label for="authPassword">Password *</label>
-      <input type="password" id="authPassword" placeholder="Enter your password" autocomplete="current-password">
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" id="authPassword" placeholder="••••••••">
+      </div>
 
-      <button class="primary" id="authSubmitBtn" onclick="handleAuth()" style="margin-top:16px; padding:12px;">Login</button>
+      <button class="btn-punch-in" id="authSubmitBtn" onclick="handleAuth()" style="width:100%; margin-top:8px;">
+        Login to Mark Attendance
+      </button>
       <div class="toggle-link" id="toggleAuthMode" onclick="toggleAuthMode()">Don't have an account? Sign up</div>
     </div>
   </div>
 
-  <!-- MAIN ATTENDANCE DASHBOARD (Hidden until logged in) -->
+  <!-- MAIN ATTENDANCE DASHBOARD -->
   <div id="mainDashboard" style="display:none;">
     <!-- HEADER -->
     <header>
       <div class="header-brand">
-        <h1>Attendance CRM</h1>
-        <span>Selfie + GPS Attendance System</span>
+        <span class="brand-icon">📸</span>
+        <div>
+          <h1>Attendance Portal</h1>
+          <span>Smart Geofenced & Selfie Attendance</span>
+        </div>
       </div>
       <div class="header-right">
-        <span id="userGreeting" class="user-greeting"></span>
-        <button id="crmDashboardHeaderBtn" type="button" class="crm-header-btn" onclick="goToCrmDashboard()">🚀 Go to CRM Dashboard</button>
-        <button id="authBtnHeader" class="header-badge" onclick="logout()">Logout</button>
+        <!-- Live IST Clock -->
+        <div class="live-clock-badge">
+          <span class="pulse-dot"></span>
+          <span id="liveClockDisplay">--:--:-- (IST)</span>
+        </div>
+        <button id="authBtnHeader" class="header-badge" onclick="logoutSession()">Sign Out</button>
       </div>
     </header>
 
     <div class="container">
+      <!-- HALF DAY NOTIFICATION BANNER (Triggered when login or attendance is after 10:05 AM) -->
+      <div id="halfDayBanner" class="halfday-banner" style="display:none;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:24px;">⚠️</span>
+          <div>
+            <strong style="color:#b91c1c; font-size:13.5px; display:block;">Half Day Notification (10:05 AM Rule):</strong>
+            <span id="halfDayBannerMsg" style="color:#9a3412; font-size:12.5px;">Aapka login/punch 10:05 AM cutoff ke baad hua hai. Company policy ke mutabik aaj aapka Half Day lag gaya hai.</span>
+          </div>
+        </div>
+        <button type="button" onclick="dismissHalfDayBanner()" style="background:transparent; border:none; color:#991b1b; font-size:20px; cursor:pointer; font-weight:bold; padding:4px 8px;">✕</button>
+      </div>
+
       <!-- STAT CARDS -->
       <div class="cards">
-        <div class="card"><small>Total Employees</small><strong id="total">0</strong></div>
-        <div class="card"><small>Present Today</small><strong id="present">0</strong></div>
-        <div class="card"><small>Late / Other</small><strong id="late">0</strong></div>
-        <div class="card"><small>Attendance %</small><strong id="percent">0%</strong></div>
+        <div class="card"><small>Total Active Employees</small><strong id="total">0</strong></div>
+        <div class="card card-success"><small>Present Today</small><strong id="present">0</strong></div>
+        <div class="card card-warning"><small>Half Day (After 10:05 AM)</small><strong id="late">0</strong></div>
+        <div class="card card-purple"><small>Today's Turnout</small><strong id="percent">0%</strong></div>
       </div>
 
       <div class="grid">
         <!-- ATTENDANCE SUBMISSION PANEL -->
         <section class="panel">
-          <h2>📸 Mark Attendance</h2>
+          <div class="panel-header">
+            <h2>📸 Mark Attendance</h2>
+            <!-- Real-time 10:05 AM Cutoff Indicator -->
+            <div id="ruleIndicatorBadge" class="rule-pill ontime">
+              <span>⏰</span> <span id="ruleIndicatorText">Checking window...</span>
+            </div>
+          </div>
           
-          <!-- Logged-in Employee Info Card -->
+          <!-- Logged-in Employee Info Card (Clean - No Go to Dashboard or Logout buttons!) -->
           <div class="employee-info-card">
             <div class="employee-info-left">
               <div class="emp-avatar">👤</div>
@@ -680,51 +1567,190 @@
                 <span id="displayEmpId">-</span>
               </div>
             </div>
-            <div class="employee-card-actions">
-              <button type="button" class="crm-card-btn" onclick="goToCrmDashboard()">🚀 Go to Dashboard</button>
-              <button type="button" class="switch-btn" onclick="logout()">Logout</button>
+            <div id="empTodayStatusBadge" class="emp-status-badge">
+              <span style="color:#64748b;">Detecting today's punch...</span>
             </div>
           </div>
 
-          <label>Selfie Photo *</label>
+          <!-- Camera Section -->
+          <label class="field-label">
+            <span>Selfie Photo *</span>
+            <small style="color:var(--text-muted); font-weight:normal;">Required for In & Out</small>
+          </label>
           <div class="camera">
             <div id="cameraPlaceholder" class="camera-placeholder">
               <span class="icon">📷</span>
-              <div>Camera is off</div>
-              <small style="color:#64748b">Click "Open Camera" to turn on</small>
+              <div style="font-weight:600; color:#cbd5e1;">Camera is currently off</div>
+              <small style="color:#94a3b8">Click "Open Camera" to turn on webcam</small>
             </div>
             <video id="video" autoplay playsinline></video>
           </div>
 
-          <div class="actions">
-            <button type="button" class="secondary" onclick="startCamera()">📷 Open Camera</button>
-            <button type="button" class="primary" onclick="takeSelfie()">📸 Capture Selfie</button>
+          <div class="camera-btn-group">
+            <button type="button" class="btn-cam-open" onclick="startCamera()">📷 Open Camera</button>
+            <button type="button" class="btn-cam-capture" onclick="takeSelfie()">📸 Capture Selfie</button>
           </div>
           
           <canvas id="canvas" style="display:none"></canvas>
-          <label id="previewLabel" style="display:none; margin-top: 12px; color: #166534; font-weight:700;">✓ Captured Selfie Preview:</label>
           <img id="preview" class="preview" alt="Selfie preview">
 
-          <label>Location *</label>
-          <button type="button" class="secondary" onclick="getLocation()" style="margin-top:0;">📍 Get Current Location</button>
-          <div id="locationStatus" class="status">Click "Get Current Location" to detect GPS and address.</div>
-
-          <div class="actions" style="margin-top:16px;">
-            <button type="button" class="primary" onclick="submitAttendance()" style="padding: 13px 18px; font-size:14px; background:#16a34a; width: 100%;">
-              ✓ Punch In
+          <!-- WORK FROM HOME / HOME LOCATION SELECTOR BUTTON -->
+          <div class="home-location-card" id="homeLocationCard">
+            <div class="home-location-left">
+              <span class="home-icon">🏠</span>
+              <div>
+                <strong id="homeLocationTitle">Work From Home (Home Location)</strong>
+                <small id="homeLocationSubtitle">When active, Home location is selected and office 50m geofence is bypassed</small>
+              </div>
+            </div>
+            <button type="button" class="btn-home-toggle" id="btnHomeLocationToggle" onclick="toggleHomeLocationMode()">
+              <span class="home-toggle-dot" id="homeToggleDot"></span>
+              <span id="btnHomeLocationText">Enable Home Location</span>
             </button>
           </div>
-          <div id="message" class="status">Capture a selfie and detect location to submit your attendance.</div>
+
+          <!-- Location & Geofence Section -->
+          <label class="field-label" style="margin-top:14px;">
+            <span>GPS Location Verification *</span>
+            <small id="geofenceRuleSub" style="color:#0284c7; font-weight:700;">NX One Campus • Greater Noida West</small>
+          </label>
+          <button type="button" class="btn-location" onclick="getLocation()">📍 Detect Current GPS Location</button>
+
+          <!-- Live Geofence Box -->
+          <div id="geofenceBox" class="geofence-box">
+            <div class="geofence-item">
+              <strong>Target:</strong>
+              <span id="targetLocationText">NX One Campus, Techzone 4, Greater Noida West</span>
+            </div>
+            <div class="geofence-item">
+              <strong>Status:</strong>
+              <span id="locationStatusText" style="color:#64748b;">Click "Detect Current GPS Location" above.</span>
+            </div>
+            <div id="geofencePillWrap"></div>
+          </div>
+
+          <!-- DAILY WORK REPORT TOGGLE BUTTON -->
+          <button type="button" class="btn-report-toggle" id="btnReportToggle" onclick="toggleReportForm()">
+            <div class="report-toggle-left">
+              <span class="report-toggle-icon">📝</span>
+              <div class="report-toggle-info">
+                <strong class="report-toggle-title">Daily Work & Development Report</strong>
+                <span class="report-toggle-subtitle" id="reportToggleSubtitle">Click to open & fill • Mandatory for Logout / Punch Out</span>
+              </div>
+            </div>
+            <div class="report-toggle-right">
+              <span id="reportPillBadge" class="report-pill-badge pending">⏳ Report Pending</span>
+              <span id="reportChevron" class="report-chevron">▼</span>
+            </div>
+          </button>
+
+          <!-- DAILY WORK & DEVELOPMENT REPORT SECTION (MANDATORY FOR LOGOUT / PUNCH OUT) -->
+          <div class="work-report-box" id="workReportSection" style="display:none;">
+            <div class="work-report-header">
+              <label for="dailyWorkReportInput" class="work-report-label">
+                <span>📝 Daily Work & Development Report</span>
+                <span class="report-badge-req">Required for Logout / Punch Out *</span>
+              </label>
+              <small class="work-report-sub">Daily work and development summary must be completed before logging out or punching out.</small>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px;">
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Work Category:</label>
+                <select id="workCategorySelect" class="form-input" style="padding:7px 10px; font-size:12px; border-radius:8px; border:1px solid #cbd5e1; width:100%; font-weight:600; background:#fff;">
+                  <option value="Development & Code Changes" selected>💻 Software Development & Code Changes</option>
+                  <option value="Bug Fixes & Maintenance">🛠️ Bug Fixes & System Maintenance</option>
+                  <option value="Feature Release & UI">🚀 Feature Release & UI Improvements</option>
+                  <option value="Client Calls & Sales">📞 Client Meetings / Sales & Support</option>
+                  <option value="General Tasks & Planning">📋 General Operations & Tasks</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Specific Changes / Modules Updated:</label>
+                <input 
+                  type="text" 
+                  id="developmentChangesInput" 
+                  placeholder="e.g., Attendance punch-out, Daily report validation, Super Admin sync" 
+                  style="width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:8px 12px; font-size:12px; font-family:inherit; box-sizing:border-box;"
+                >
+              </div>
+            </div>
+
+            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Detailed Tasks / Work Summary *:</label>
+            <textarea 
+              id="dailyWorkReportInput" 
+              class="work-report-textarea" 
+              rows="3" 
+              placeholder="Describe the tasks completed, features developed, code changes, or deliverables submitted today..."
+              oninput="handleReportInput()"
+            ></textarea>
+            <div class="work-report-footer">
+              <span id="reportCharCount" style="font-size:11px; color:#64748b;">Min 5 characters required</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span id="reportStatusIndicator" class="report-status-pending">⏳ Work Report Pending</span>
+                <button type="button" class="btn-save-report-inline" onclick="submitWorkReportOnly()">💾 Save Report</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ACTION BUTTONS: PUNCH IN, LUNCH BREAK & PUNCH OUT -->
+          <div class="punch-actions-grid">
+            <button type="button" class="btn-punch-in" id="btnPunchIn" onclick="submitAttendance()">
+              <span>✓</span>
+              <span>Punch In</span>
+            </button>
+            <button type="button" class="btn-lunch" id="btnLunch" onclick="toggleLunchBreak()" title="Click to Start/End Lunch Break (No selfie or report required)">
+              <span id="lunchBtnIcon">🍱</span>
+              <span id="lunchBtnText">Lunch Break</span>
+            </button>
+            <button type="button" class="btn-punch-out" id="btnPunchOut" onclick="punchOutAttendance()">
+              <span>🚪</span>
+              <span>Punch Out</span>
+            </button>
+          </div>
+
+          <!-- LUNCH BREAK ACTIVE INDICATOR BANNER -->
+          <div id="lunchActiveAlert" class="lunch-active-box" style="display:none;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:24px;">🍱</span>
+              <div>
+                <strong style="color:#b45309; font-size:13px; display:block;">Lunch Break Active</strong>
+                <p style="font-size:11.5px; color:#92400e; margin-top:2px;">
+                  🟢 Lunch break chal raha hai! Daily Work Report submit nahi karni padegi aur Selfie photo bhi required nahi hai.
+                </p>
+              </div>
+            </div>
+            <button type="button" class="btn-end-lunch-inline" onclick="toggleLunchBreak()">
+              End Lunch (Back to Work)
+            </button>
+          </div>
+
+          <div id="message" class="status-msg-box">
+            Selfie photo, GPS verification, and Daily Work Report are required for Punch Out.
+          </div>
         </section>
 
         <!-- ATTENDANCE RECORDS PANEL -->
         <section class="panel">
-          <h2 style="margin-bottom:14px;">📋 Attendance Records</h2>
-          <div class="row" style="margin-bottom: 12px;">
-            <input id="search" placeholder="Search employee by name or ID..." oninput="render()">
-            <select id="filter" onchange="render()">
-              <option value="all">All Records</option>
-              <option value="today">Today's Records</option>
+          <div class="panel-header">
+            <div>
+              <h2 style="margin-bottom: 2px;">📋 Today's Attendance Logs</h2>
+              <small id="todayDateSubtext" style="color:var(--text-muted); font-size:12px;">Live records for today (Asia/Kolkata). Old data stays safe in database.</small>
+            </div>
+            <button type="button" onclick="render()" style="background:#f1f5f9; color:#475569; padding:6px 12px; font-size:12px; border:1px solid #cbd5e1;">
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div class="table-controls">
+            <div class="search-input-wrap">
+              <input id="search" placeholder="🔍 Search employee by name or ID..." oninput="filterLocalRecords()">
+            </div>
+            <select id="filterSelect" class="filter-select" onchange="loadRecordsFromBackend()">
+              <option value="today" selected>📅 Today's Records Only</option>
+              <option value="all">📂 All Records (History Archive)</option>
+              <option value="super-admin">👑 Super Admin CRM View (All Reports & Code Changes)</option>
             </select>
           </div>
 
@@ -734,15 +1760,17 @@
                 <tr>
                   <th>Employee</th>
                   <th>Date</th>
-                  <th>Login Time (In)</th>
-                  <th>Logout Time (Out)</th>
+                  <th>Punch In (Login)</th>
+                  <th>🍱 Lunch Break</th>
+                  <th>Punch Out (Logout)</th>
+                  <th>Daily Work Report</th>
                   <th>Status</th>
-                  <th>Location & Address</th>
-                  <th>Selfie</th>
+                  <th>Office Distance</th>
+                  <th>Selfies</th>
                 </tr>
               </thead>
               <tbody id="records">
-                <tr><td colspan="7" style="text-align:center; padding: 20px; color:#64748b;">Loading records...</td></tr>
+                <tr><td colspan="9" style="text-align:center; padding: 24px; color:#64748b;">Loading fast records...</td></tr>
               </tbody>
             </table>
           </div>
@@ -751,19 +1779,217 @@
     </div>
   </div>
 
+  <!-- Lightbox Modal for Full Image View -->
+  <div id="lightboxModal" class="lightbox-modal" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+    <img id="lightboxImg" class="lightbox-content" src="" alt="Enlarged Selfie">
+  </div>
+
+  <!-- Daily Work & Development Report View Modal -->
+  <div id="reportViewModal" class="lightbox-modal" onclick="closeReportModal(event)">
+    <div class="report-modal-card" onclick="event.stopPropagation()">
+      <div class="report-modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:26px;">📝</span>
+          <div>
+            <h3 id="reportModalEmpName" style="font-size:16px; font-weight:700; color:#0f172a; margin:0;">Daily Work & Development Report</h3>
+            <small id="reportModalMeta" style="color:#64748b; font-size:12px;">Submitted at --</small>
+          </div>
+        </div>
+        <button type="button" class="report-modal-close" onclick="closeReportModal()">&times;</button>
+      </div>
+      <div class="report-modal-body">
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase;">Category:</span>
+          <span id="reportModalCategory" class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:12px;">Development</span>
+        </div>
+
+        <div id="reportModalChangesWrap" style="margin-bottom:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; display:none;">
+          <span style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:3px;">🚀 Specific Changes / Modules Updated:</span>
+          <div id="reportModalChanges" style="font-size:13px; color:#14532d; font-weight:600;">None specified</div>
+        </div>
+
+        <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">Work Summary & Tasks Completed:</label>
+        <div id="reportModalText" class="report-modal-text"></div>
+      </div>
+      <div style="text-align:right; margin-top:16px;">
+        <button type="button" onclick="closeReportModal()" style="background:#2563eb; color:#fff; padding:8px 20px; border-radius:8px; font-weight:600; font-size:13px; border:none; cursor:pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HALF DAY NOTIFICATION POPUP MODAL (10:05 AM RULE) -->
+  <div id="halfDayModal" class="lightbox-modal" style="display:none;" onclick="closeHalfDayModal(event)">
+    <div class="report-modal-card" style="max-width:440px; text-align:center; padding:28px 24px;" onclick="event.stopPropagation()">
+      <div style="width:64px; height:64px; border-radius:50%; background:#fef3c7; border:2px solid #fde68a; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 16px;">
+        ⏰
+      </div>
+      <h3 style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:800; color:#0f172a; margin-bottom:8px;">
+        Half Day Notification
+      </h3>
+      <div style="background:#fffbeb; border:1px solid #fed7aa; border-radius:10px; padding:12px 14px; margin-bottom:18px; text-align:left;">
+        <p style="font-size:13.5px; color:#9a3412; font-weight:700; line-height:1.5;">
+          ⚠️ Aap 10:05 AM ke baad login / punch kar rahe hain!
+        </p>
+        <p id="halfDayModalText" style="font-size:13px; color:#b45309; margin-top:6px; line-height:1.4;">
+          Company policy ke tahat aapka aaj <b>Half Day</b> lag gaya hai.
+        </p>
+      </div>
+      <button type="button" onclick="closeHalfDayModal()" style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:#fff; border:none; padding:12px 28px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(217, 119, 6, 0.3);">
+        Theek Hai, Samjh Gaya (OK)
+      </button>
+    </div>
+  </div>
+
+  <!-- DEDICATED NETWORK ISSUE POPUP MODAL -->
+  <div id="networkIssueModal" class="lightbox-modal" style="display:none;" onclick="closeNetworkModal(event)">
+    <div class="report-modal-card" style="max-width:440px; text-align:center; padding:28px 24px;" onclick="event.stopPropagation()">
+      <div class="network-modal-icon-wrap">
+        📶⚠️
+      </div>
+      <h3 style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:800; color:#0f172a; margin-bottom:8px;">
+        Network Issue Detected
+      </h3>
+      <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:14px; margin-bottom:18px; text-align:left;">
+        <p style="font-size:13.5px; color:#b91c1c; font-weight:700; line-height:1.5;">
+          ⚠️ Server ya Internet se connection nahi ho pa raha hai!
+        </p>
+        <p id="networkModalDetails" style="font-size:13px; color:#7f1d1d; margin-top:6px; line-height:1.4;">
+          Aapka internet slow ya disconnected ho sakta hai. Kripya apna Wi-Fi ya Mobile Data check karein aur dobara koshish karein.
+        </p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="button" onclick="retryNetworkConnection()" style="flex:1; background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color:#fff; border:none; padding:12px 16px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(220, 38, 38, 0.3);">
+          🔄 Retry (Dobara Koshish)
+        </button>
+        <button type="button" onclick="closeNetworkModal()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:12px 18px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer;">
+          Theek Hai
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toastify JS -->
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script>
+    // Configuration
+    const OFFICE_CONFIG = {
+      lat: 28.600556,
+      lng: 77.432778,
+      radiusMeters: 350,
+      maxAccuracyMeters: 300,
+      timezone: 'Asia/Kolkata',
+      cutoffHour: 10,
+      cutoffMinute: 5
+    };
+
+    // Helper: Determine if coordinates / address fall in NX One office complex
+    function isWithinOffice(lat, lng, distance, address = '') {
+      if (lat === undefined || lng === undefined) return false;
+      if (distance !== undefined && distance <= OFFICE_CONFIG.radiusMeters) return true;
+      // NX One Techzone 4 campus coordinates bounding box
+      if (lat >= 28.5920 && lat <= 28.6080 && lng >= 77.4200 && lng <= 77.4400) return true;
+      // Check address string
+      if (address && /nx\s*one|techzone\s*4|greater\s*noida\s*west/i.test(address)) return true;
+      return false;
+    }
+
     let stream = null;
     let selfieData = "";
     let gps = null;
     let isSignupMode = false;
+    let rawFetchedRecords = [];
 
     const API_BASE = '';
 
-    // Check login state on load
+    // Calculate distance using Haversine formula in meters
+    function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+      if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return Infinity;
+      const R = 6371e3;
+      const phi1 = (lat1 * Math.PI) / 180;
+      const phi2 = (lat2 * Math.PI) / 180;
+      const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+      const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a =
+        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.round(R * c);
+    }
+
+    // Check 10:05 AM Half Day Rule in Asia/Kolkata
+    function isCurrentTimeAfterHalfDayCutoff() {
+      const checkDate = new Date();
+      try {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: OFFICE_CONFIG.timezone,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        }).formatToParts(checkDate);
+        const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+        return (h > OFFICE_CONFIG.cutoffHour) || (h === OFFICE_CONFIG.cutoffHour && m > OFFICE_CONFIG.cutoffMinute);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Update Live Clock & Cutoff Rule Banner
+    function updateLiveClock() {
+      const clockEl = document.getElementById('liveClockDisplay');
+      const badgeEl = document.getElementById('ruleIndicatorBadge');
+      const textEl = document.getElementById('ruleIndicatorText');
+
+      const now = new Date();
+
+      if (clockEl) {
+        try {
+          clockEl.textContent = now.toLocaleTimeString('en-IN', {
+            timeZone: OFFICE_CONFIG.timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          }) + ' (IST)';
+        } catch (e) {
+          clockEl.textContent = now.toLocaleTimeString() + ' (IST)';
+        }
+      }
+
+      const isLate = isCurrentTimeAfterHalfDayCutoff();
+      if (badgeEl && textEl) {
+        if (isLate) {
+          badgeEl.className = 'rule-pill halfday';
+          textEl.textContent = 'After 10:05 AM: Half Day Window';
+        } else {
+          badgeEl.className = 'rule-pill ontime';
+          textEl.textContent = 'Before 10:05 AM: On-Time (Full Day)';
+        }
+      }
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    // Fetch live office configuration from backend
+    async function loadOfficeConfig() {
+      try {
+        const res = await fetch(`${API_BASE}/api/attendance/office-config`);
+        const data = await res.json();
+        if (data.success) {
+          OFFICE_CONFIG.lat = data.officeLatitude || OFFICE_CONFIG.lat;
+          OFFICE_CONFIG.lng = data.officeLongitude || OFFICE_CONFIG.lng;
+          OFFICE_CONFIG.radiusMeters = data.officeRadiusMeters || OFFICE_CONFIG.radiusMeters;
+          OFFICE_CONFIG.maxAccuracyMeters = data.gpsMaxAccuracyMeters || OFFICE_CONFIG.maxAccuracyMeters;
+        }
+      } catch (e) {}
+    }
+
+    // Initialize application
     window.addEventListener('DOMContentLoaded', () => {
-      let savedEmpId = localStorage.getItem('empId');
+      loadOfficeConfig();
+      const savedEmpId = localStorage.getItem('empId');
       const savedName = localStorage.getItem('empName');
 
       if (savedEmpId && savedEmpId !== 'undefined' && savedEmpId !== 'null' && savedName) {
@@ -779,6 +2005,254 @@
       document.getElementById('mainDashboard').style.display = 'none';
     }
 
+    // --- NETWORK ISSUE NOTIFICATION & MONITORING ---
+    let lastNetworkRetryAction = null;
+    let networkBannerTimeout = null;
+
+    function showNetworkIssueNotification(title = "Network Issue Detected!", details = "", retryAction = null) {
+      if (typeof retryAction === 'function') {
+        lastNetworkRetryAction = retryAction;
+      }
+
+      // 1. Show Global Top Banner
+      const banner = document.getElementById('globalNetworkBanner');
+      const titleEl = document.getElementById('networkBannerTitle');
+      const descEl = document.getElementById('networkBannerDesc');
+
+      if (banner) {
+        banner.classList.remove('online-restored');
+        if (titleEl) titleEl.textContent = title;
+        if (descEl) {
+          descEl.textContent = details || "Internet connection slow ya disconnect ho gaya hai. Kripya Wi-Fi ya Mobile Data check karein.";
+        }
+        banner.style.display = 'flex';
+        if (networkBannerTimeout) clearTimeout(networkBannerTimeout);
+      }
+
+      // 2. Show Dedicated Network Issue Modal Popup
+      const modal = document.getElementById('networkIssueModal');
+      const modalDetails = document.getElementById('networkModalDetails');
+      if (modalDetails) {
+        modalDetails.innerHTML = details 
+          ? `<b>Details:</b> ${escapeHtml(details)}<br><span style="margin-top:6px; display:inline-block; font-size:12.5px;">Kripya apna internet connection check karke dobara koshish karein.</span>`
+          : "Aapka device internet se connect nahi ho pa raha hai ya server unreachable hai. Kripya apna Wi-Fi ya Mobile Data check karein aur Retry karein.";
+      }
+      if (modal) modal.style.display = 'flex';
+
+      // 3. Prominent Toast Notification
+      showToast("📶 Network Issue: Internet connection check karein!", "#dc2626", 6000);
+    }
+
+    function hideNetworkBanner() {
+      const banner = document.getElementById('globalNetworkBanner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    function dismissNetworkBanner() {
+      hideNetworkBanner();
+    }
+
+    function closeNetworkModal(event) {
+      if (event && event.target && event.target !== event.currentTarget && !event.target.classList.contains('report-modal-close')) {
+        return;
+      }
+      const modal = document.getElementById('networkIssueModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function retryNetworkConnection() {
+      const titleEl = document.getElementById('networkBannerTitle');
+      const descEl = document.getElementById('networkBannerDesc');
+
+      if (titleEl) titleEl.textContent = "Checking Connection...";
+      if (descEl) descEl.textContent = "Server se connect karne ki koshish ki ja rahi hai...";
+      showToast("🔄 Checking internet connection...", "#2563eb", 2000);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(`${API_BASE}/api/attendance/office-config?ping=${Date.now()}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          handleNetworkRestored();
+          closeNetworkModal();
+          if (typeof lastNetworkRetryAction === 'function') {
+            const act = lastNetworkRetryAction;
+            lastNetworkRetryAction = null;
+            act();
+          }
+          return;
+        }
+      } catch (e) {}
+
+      showNetworkIssueNotification(
+        "Network Still Unavailable!",
+        "Server se abhi bhi connect nahi ho pa raha hai. Kripya Wi-Fi / Hotspot switch karke dekhein."
+      );
+    }
+
+    function handleNetworkRestored() {
+      const banner = document.getElementById('globalNetworkBanner');
+      const titleEl = document.getElementById('networkBannerTitle');
+      const descEl = document.getElementById('networkBannerDesc');
+
+      if (banner) {
+        banner.classList.add('online-restored');
+        if (titleEl) titleEl.textContent = "🟢 Network Connection Restored!";
+        if (descEl) descEl.textContent = "Internet wapas aa gaya hai. Sabhi features ab online hain.";
+        banner.style.display = 'flex';
+
+        if (networkBannerTimeout) clearTimeout(networkBannerTimeout);
+        networkBannerTimeout = setTimeout(() => {
+          banner.style.display = 'none';
+          banner.classList.remove('online-restored');
+        }, 4000);
+      }
+
+      closeNetworkModal();
+      showToast("🟢 Internet Connected! System is back online.", "#10b981", 4000);
+      loadRecordsFromBackend();
+    }
+
+    // Real-time window online/offline event listeners
+    window.addEventListener('offline', () => {
+      showNetworkIssueNotification(
+        "Network Disconnected! (Offline)",
+        "Aapka device offline chala gaya hai. Kripya internet ya Wi-Fi check karein."
+      );
+    });
+
+    window.addEventListener('online', () => {
+      handleNetworkRestored();
+    });
+
+    // --- LUNCH BREAK STATE & HELPERS ---
+    let isLunchActive = false;
+
+    function showHalfDayNotificationModal(customMsg) {
+      const modal = document.getElementById('halfDayModal');
+      const textEl = document.getElementById('halfDayModalText');
+      if (textEl && customMsg) textEl.textContent = customMsg;
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeHalfDayModal(event) {
+      if (event && event.target && event.target !== event.currentTarget && !event.target.classList.contains('report-modal-close')) {
+        return;
+      }
+      const modal = document.getElementById('halfDayModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function dismissHalfDayBanner() {
+      const banner = document.getElementById('halfDayBanner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    function updateLunchUI(isOnLunch, startTime) {
+      isLunchActive = Boolean(isOnLunch);
+      const btn = document.getElementById('btnLunch');
+      const icon = document.getElementById('lunchBtnIcon');
+      const text = document.getElementById('lunchBtnText');
+      const alertBox = document.getElementById('lunchActiveAlert');
+      const reportSub = document.getElementById('reportToggleSubtitle');
+      const reportBadge = document.getElementById('reportPillBadge');
+
+      if (isLunchActive) {
+        if (btn) {
+          btn.classList.add('active');
+          if (icon) icon.textContent = '🍱';
+          if (text) text.textContent = 'End Lunch';
+          btn.title = 'Click to End Lunch Break';
+        }
+        if (alertBox) alertBox.style.display = 'flex';
+
+        if (reportSub) reportSub.textContent = '🟢 Lunch Break Active • Daily Work Report not required';
+        if (reportBadge) {
+          reportBadge.className = 'report-pill-badge ready';
+          reportBadge.textContent = '🟢 Bypassed for Lunch';
+        }
+      } else {
+        if (btn) {
+          btn.classList.remove('active');
+          if (icon) icon.textContent = '🍱';
+          if (text) text.textContent = 'Lunch Break';
+          btn.title = 'Click to Start/End Lunch Break (No selfie or report required)';
+        }
+        if (alertBox) alertBox.style.display = 'none';
+
+        if (reportSub) reportSub.textContent = 'Click to open & fill • Mandatory for Logout / Punch Out';
+        handleReportInput();
+      }
+    }
+
+    async function checkEmployeeLunchStatus(empId) {
+      if (!empId) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/attendance/lunch/status/${encodeURIComponent(empId)}`);
+        const data = await res.json();
+        if (data.success) {
+          updateLunchUI(data.isOnLunch, data.lunchStartTime);
+        }
+      } catch (e) {}
+    }
+
+    async function toggleLunchBreak() {
+      const empId = localStorage.getItem('empId');
+      const empName = localStorage.getItem('empName') || 'Employee';
+      const btn = document.getElementById('btnLunch');
+
+      if (!empId || empId === 'undefined' || empId === 'null') {
+        showToast("Please login first!", "#ef4444");
+        showAuth();
+        return;
+      }
+
+      const nextAction = isLunchActive ? 'end' : 'start';
+      if (btn) btn.disabled = true;
+
+      try {
+        const endpoint = nextAction === 'start' ? '/api/attendance/lunch/start' : '/api/attendance/lunch/end';
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empId,
+            empName,
+            location: gps || { address: 'Office Location', lat: OFFICE_CONFIG.lat, lng: OFFICE_CONFIG.lng }
+          })
+        });
+
+        const data = await res.json();
+        if (btn) btn.disabled = false;
+
+        if (data.success) {
+          updateLunchUI(data.isOnLunch, data.lunchStartTime);
+          if (data.isOnLunch) {
+            showToast(`🍱 Lunch Started at ${data.lunchStartTime || 'Now'}! (Report aur selfie require nahi hai)`, "#10b981", 4500);
+            const msg = document.getElementById('message');
+            if (msg) msg.textContent = "🍱 Lunch break started! Daily Work Report aur Selfie require nahi hai.";
+          } else {
+            showToast(`🍱 Lunch Ended (${data.breakDurationMinutes || 0} mins)! Welcome back to work.`, "#2563eb", 4500);
+            const msg = document.getElementById('message');
+            if (msg) msg.textContent = `✓ Lunch ended at ${data.lunchEndTime} (${data.breakDurationMinutes} mins). Back to work!`;
+          }
+          loadRecordsFromBackend();
+        } else {
+          showToast(data.message || "Could not update lunch break.", "#ef4444");
+        }
+      } catch (err) {
+        if (btn) btn.disabled = false;
+        console.error("toggleLunchBreak network error:", err);
+        showNetworkIssueNotification(
+          "Lunch Update Failed (Network Error)",
+          "Lunch break status server par update nahi ho saka. Kripya apna internet connection check karein.",
+          () => toggleLunchBreak()
+        );
+      }
+    }
+
     function showDashboard(empId, empName) {
       document.getElementById('authContainer').style.display = 'none';
       document.getElementById('mainDashboard').style.display = 'block';
@@ -786,20 +2260,41 @@
       const cleanId = (empId && empId !== 'undefined' && empId !== 'null') ? empId : '-';
       document.getElementById('displayEmpName').textContent = empName || 'Employee';
       document.getElementById('displayEmpId').textContent = `ID: ${cleanId}`;
-      document.getElementById('userGreeting').textContent = `👤 ${empName || 'Employee'}`;
 
-      render();
+      const todayStr = new Date().toLocaleDateString('en-IN', {
+        timeZone: OFFICE_CONFIG.timezone,
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+      const subEl = document.getElementById('todayDateSubtext');
+      if (subEl) {
+        subEl.textContent = `Today: ${todayStr} (IST). Old data preserved permanently in database.`;
+      }
+
+      // Check if after 10:05 AM and show Half Day banner
+      const isLate = isCurrentTimeAfterHalfDayCutoff();
+      const banner = document.getElementById('halfDayBanner');
+      if (banner) {
+        banner.style.display = isLate ? 'flex' : 'none';
+      }
+
+      // Check live lunch status for this employee
+      checkEmployeeLunchStatus(cleanId);
+
+      loadRecordsFromBackend();
     }
 
     function toggleAuthMode() {
       isSignupMode = !isSignupMode;
-      document.getElementById('authTitle').textContent = isSignupMode ? 'Employee Sign Up' : 'Employee Login';
-      document.getElementById('authSubtitle').textContent = isSignupMode ? 'Create your account to get Employee ID' : 'Enter your credentials to mark attendance';
+      document.getElementById('authTitle').textContent = isSignupMode ? 'Employee Registration' : 'Employee Attendance';
+      document.getElementById('authSubtitle').textContent = isSignupMode ? 'Create your account to get your Employee ID' : 'Enter your credentials to mark attendance';
       document.getElementById('nameField').style.display = isSignupMode ? 'block' : 'none';
-      document.getElementById('idOrEmailLabel').textContent = isSignupMode ? 'Email Address *' : 'Employee ID *';
-      document.getElementById('authSubmitBtn').textContent = isSignupMode ? 'Sign Up' : 'Login';
+      document.getElementById('idOrEmailLabel').textContent = isSignupMode ? 'Email Address *' : 'Employee ID or Email *';
+      document.getElementById('authSubmitBtn').textContent = isSignupMode ? 'Sign Up & Continue' : 'Login to Mark Attendance';
       document.getElementById('toggleAuthMode').textContent = isSignupMode 
-        ? 'Already have an account? Login' 
+        ? 'Already registered? Login' 
         : "Don't have an account? Sign up";
     }
 
@@ -809,11 +2304,7 @@
       const name = document.getElementById('authName').value.trim();
 
       if (!password || !idOrEmail || (isSignupMode && !name)) {
-        Toastify({
-          text: "Please fill in all required fields!",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
+        showToast("Please fill in all required fields!", "#ef4444");
         return;
       }
 
@@ -837,125 +2328,160 @@
 
           localStorage.setItem('empId', finalId);
           localStorage.setItem('empName', data.name || 'Employee');
-          if (data.ssoToken) {
-            localStorage.setItem('ssoToken', data.ssoToken);
-          }
-          if (data.crmDashboardUrl) {
-            localStorage.setItem('crmDashboardUrl', data.crmDashboardUrl);
-          }
           
           showDashboard(finalId, data.name || 'Employee');
 
-          Toastify({
-            text: `Welcome, ${data.name}! Employee ID: ${finalId}`,
-            duration: 3000,
-            style: { background: "#10b981" }
-          }).showToast();
+          // Check if employee logged in after 10:05 AM -> Show Notification Modal & Toast!
+          const isLate = Boolean(data.isHalfDay || data.isAfter1005 || isCurrentTimeAfterHalfDayCutoff());
+          if (isLate) {
+            const notifMsg = data.notificationMessage || "Aap 10:05 AM ke baad login kar rahe hain. Aapka Half Day lag gaya hai!";
+            showHalfDayNotificationModal(notifMsg);
+            showToast("⚠️ " + notifMsg, "#ea580c", 6500);
+          } else {
+            showToast(`Welcome, ${data.name || 'Employee'}!`, "#10b981");
+          }
         } else {
-          Toastify({
-            text: data.message || "Authentication failed",
-            duration: 3500,
-            style: { background: "#ef4444" }
-          }).showToast();
+          showToast(data.message || "Authentication failed", "#ef4444");
         }
       } catch (err) {
-        Toastify({
-          text: "Error connecting to server.",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
+        console.error("handleAuth network error:", err);
+        showNetworkIssueNotification(
+          "Login Failed (Network Error)",
+          "Server se connect nahi ho pa raha hai. Kripya apna internet connection check karke Retry karein.",
+          () => handleAuth()
+        );
       }
     }
 
-    async function logout() {
+    function logoutSession(force = false) {
       const empId = localStorage.getItem('empId');
-      const empName = localStorage.getItem('empName');
+      if (!force && empId) {
+        const reportInput = document.getElementById('dailyWorkReportInput');
+        const workReport = (reportInput ? reportInput.value : '').trim();
+        
+        // Find if employee already has a submitted report or punch out for today
+        const todayRecord = (rawFetchedRecords || []).find(r => 
+          (r.empId && String(r.empId).toLowerCase() === String(empId).toLowerCase()) || 
+          (r.empName && String(r.empName).toLowerCase() === String(localStorage.getItem('empName') || '').toLowerCase())
+        );
 
-      // Automatically sync logout time to attendance record on server
-      if (empId && empId !== 'undefined' && empId !== 'null') {
-        try {
-          await fetch(`${API_BASE}/api/attendance/punch-out`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              empId,
-              empName,
-              location: gps || { address: 'Logged out from portal', lat: 0, lng: 0 }
-            })
-          });
-        } catch (e) {
-          console.warn("Auto logout sync error:", e);
+        const alreadySubmittedReport = todayRecord && todayRecord.workReport && todayRecord.workReport.trim().length >= 5;
+        const hasTypedValidReport = workReport.length >= 5;
+
+        // If neither typed nor already submitted on server, block logout (unless Lunch break is active!)
+        if (!hasTypedValidReport && !alreadySubmittedReport && !isLunchActive) {
+          openReportForm();
+          const reportBox = document.getElementById('workReportSection');
+          if (reportBox) {
+            reportBox.classList.add('report-error');
+            setTimeout(() => reportBox.classList.remove('report-error'), 3000);
+            reportBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          if (reportInput) reportInput.focus();
+
+          const message = document.getElementById('message');
+          if (message) {
+            message.textContent = "❌ Logout Blocked: You must fill and submit your Daily Work Report before logout.";
+          }
+          showToast("❌ Logout Blocked! You must fill your Daily Work Report before logout.", "#ef4444", 4500);
+          return;
         }
       }
 
-      // Stop camera if running
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
       }
       localStorage.removeItem('empId');
       localStorage.removeItem('empName');
-      localStorage.removeItem('ssoToken');
-      localStorage.removeItem('crmDashboardUrl');
       document.getElementById('authPassword').value = '';
       showAuth();
-      Toastify({
-        text: "Logged out successfully & Logout time recorded!",
-        duration: 3000,
-        style: { background: "#2563eb" }
-      }).showToast();
-    }
-
-    // Go to CRM Dashboard with secure SSO token (routes directly to /employee dashboard)
-    async function goToCrmDashboard() {
-      const empId = localStorage.getItem('empId') || '';
-      const empName = localStorage.getItem('empName') || '';
-      const cachedUrl = localStorage.getItem('crmDashboardUrl');
-
-      Toastify({
-        text: "Opening Employee Dashboard...",
-        duration: 2000,
-        style: { background: "#2563eb" }
-      }).showToast();
-
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/crm-sso?empId=${encodeURIComponent(empId)}&name=${encodeURIComponent(empName)}&target=/employee&format=json`);
-        const data = await res.json();
-
-        if (data.success && data.redirectUrl) {
-          localStorage.setItem('ssoToken', data.ssoToken);
-          localStorage.setItem('crmDashboardUrl', data.redirectUrl);
-
-          const win = window.open(data.redirectUrl, '_blank');
-          if (!win || win.closed || typeof win.closed === 'undefined') {
-            window.location.href = data.redirectUrl;
-          }
-          return;
-        }
-      } catch (err) {
-        console.warn("SSO route error, falling back to cached URL:", err);
-      }
-
-      // Fallback if network issue or offline
-      if (cachedUrl && !cachedUrl.endsWith('target=%2F') && !cachedUrl.endsWith('target=/')) {
-        const win = window.open(cachedUrl, '_blank');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          window.location.href = cachedUrl;
-        }
-      } else {
-        const fallback = 'https://advmen-crm-frontend.vercel.app/employee';
-        const win = window.open(fallback, '_blank');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          window.location.href = fallback;
-        }
-      }
+      showToast("Signed out successfully.", "#2563eb");
     }
 
     function escapeHtml(s) { 
       return String(s || '').replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m])); 
     }
 
-    // --- Camera Functions ---
+    function showToast(text, bg = "#2563eb", duration = 3500) {
+      Toastify({
+        text: text,
+        duration: duration,
+        gravity: "top",
+        position: "right",
+        style: { background: bg, borderRadius: "10px", fontWeight: "600", fontSize: "13px" }
+      }).showToast();
+    }
+
+    // --- WORK FROM HOME / HOME LOCATION MODE ---
+    let isHomeModeActive = false;
+
+    function toggleHomeLocationMode() {
+      isHomeModeActive = !isHomeModeActive;
+      const btn = document.getElementById('btnHomeLocationToggle');
+      const card = document.getElementById('homeLocationCard');
+      const text = document.getElementById('btnHomeLocationText');
+      const sub = document.getElementById('homeLocationSubtitle');
+      const targetLocationText = document.getElementById('targetLocationText');
+      const geofenceRuleSub = document.getElementById('geofenceRuleSub');
+
+      if (isHomeModeActive) {
+        btn.classList.add('active');
+        card.classList.add('active');
+        text.textContent = '✓ Home Location Active';
+        sub.textContent = '🟢 Home location selected! Office 50m geofence check is bypassed.';
+        if (targetLocationText) {
+          targetLocationText.textContent = '🏠 Home / Remote Location (Office 50m check bypassed)';
+        }
+        if (geofenceRuleSub) {
+          geofenceRuleSub.textContent = '🏠 Home Mode (No 50m Limit)';
+          geofenceRuleSub.style.color = '#10b981';
+        }
+        showToast("🏠 Home Location Active! Punch allowed from home.", "#10b981");
+      } else {
+        btn.classList.remove('active');
+        card.classList.remove('active');
+        text.textContent = 'Enable Home Location';
+        sub.textContent = 'When active, Home location is selected and office 50m geofence is bypassed';
+        if (targetLocationText) {
+          targetLocationText.textContent = 'NX One Campus, Techzone 4, Greater Noida West';
+        }
+        if (geofenceRuleSub) {
+          geofenceRuleSub.textContent = 'NX One Campus • Greater Noida West';
+          geofenceRuleSub.style.color = '#0284c7';
+        }
+        showToast("🏢 Switched back to Office Campus Mode.", "#2563eb");
+      }
+
+      if (gps) {
+        updateGeofencePillUI(gps.distanceMeters, gps.accuracy);
+      }
+    }
+
+    function updateGeofencePillUI(distance, accuracy) {
+      const geofencePillWrap = document.getElementById("geofencePillWrap");
+      if (!geofencePillWrap) return;
+
+      if (isHomeModeActive) {
+        geofencePillWrap.innerHTML = `<span class="geofence-pill inside">🟢 Home Location Selected ✅ (Punch allowed from Home without office geofence)</span>`;
+        return;
+      }
+
+      const curLat = gps ? gps.lat : undefined;
+      const curLng = gps ? gps.lng : undefined;
+      const curAddr = gps ? gps.address : '';
+      const atOffice = isWithinOffice(curLat, curLng, distance, curAddr);
+
+      if (atOffice) {
+        geofencePillWrap.innerHTML = `<span class="geofence-pill inside">🟢 Inside Office Boundary (NX One, Techzone 4) ✅ Ready to punch!</span>`;
+      } else if (accuracy > OFFICE_CONFIG.maxAccuracyMeters) {
+        geofencePillWrap.innerHTML = `<span class="geofence-pill warning">⚠️ GPS Accuracy Low: ±${accuracy}m (Max allowed: ±${OFFICE_CONFIG.maxAccuracyMeters}m). Please refresh GPS.</span>`;
+      } else {
+        geofencePillWrap.innerHTML = `<span class="geofence-pill outside">🔴 Outside Office Campus (${distance}m away). Allowed within office boundary (${OFFICE_CONFIG.radiusMeters}m)! ❌ Punch will be blocked.</span>`;
+      }
+    }
+
+    // --- CAMERA FUNCTIONS ---
     async function startCamera() {
       const video = document.getElementById('video');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
@@ -973,22 +2499,12 @@
         video.srcObject = stream;
         video.style.display = "block";
         if (cameraPlaceholder) cameraPlaceholder.style.display = "none";
-        message.textContent = "Camera is on. Click 'Capture Selfie' when ready.";
-        Toastify({
-          text: "Camera activated!",
-          duration: 2000,
-          gravity: "top",
-          position: "right",
-          style: { background: "#2563eb" }
-        }).showToast();
+        message.textContent = "Camera active. Click 'Capture Selfie' when ready.";
+        showToast("Webcam connected!", "#2563eb", 2000);
       } catch (e) {
         console.error("Camera error:", e);
-        message.textContent = "Camera permission denied or camera device unavailable.";
-        Toastify({
-          text: "Camera permission denied or camera unavailable!",
-          duration: 3500,
-          style: { background: "#ef4444" }
-        }).showToast();
+        message.textContent = "Camera access denied or unavailable.";
+        showToast("Camera access denied or unavailable!", "#ef4444");
       }
     }
 
@@ -996,16 +2512,11 @@
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const preview = document.getElementById('preview');
-      const previewLabel = document.getElementById('previewLabel');
       const message = document.getElementById('message');
 
       if (!stream) {
         message.textContent = "Please click 'Open Camera' first.";
-        Toastify({
-          text: "Please click 'Open Camera' first!",
-          duration: 2500,
-          style: { background: "#f59e0b" }
-        }).showToast();
+        showToast("Please click 'Open Camera' first!", "#f59e0b");
         return;
       }
 
@@ -1016,17 +2527,11 @@
 
       preview.src = selfieData; 
       preview.style.display = "block";
-      previewLabel.style.display = "block";
-      message.textContent = "Selfie captured successfully! Please get your location if not already done.";
-      
-      Toastify({
-        text: "Selfie captured successfully!",
-        duration: 2000,
-        style: { background: "#10b981" }
-      }).showToast();
+      message.textContent = "✓ Selfie captured! Now detect location to punch in or out.";
+      showToast("Selfie captured successfully! ✓", "#10b981", 2000);
     }
 
-    // --- Location Functions ---
+    // --- REVERSE GEOCODING & LOCATION ---
     async function reverseGeocode(lat, lng) {
       const isAtNXOne = (lat >= 28.5950 && lat <= 28.6050 && lng >= 77.4250 && lng <= 77.4370);
       if (isAtNXOne) {
@@ -1035,120 +2540,103 @@
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { signal: controller.signal });
         clearTimeout(timeoutId);
         const data = await res.json();
         if (data && data.display_name) return data.display_name;
       } catch (e) {}
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        const data = await res.json();
-        const parts = [data.locality || data.city, data.principalSubdivision, data.countryName].filter(Boolean);
-        if (parts.length > 0) return parts.join(", ");
-      } catch (e) {}
-
-      return `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+      return `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
     }
 
     async function getLocation() {
-      const locationStatus = document.getElementById("locationStatus");
+      const locationStatusText = document.getElementById("locationStatusText");
+
       if (!navigator.geolocation) {
-        locationStatus.textContent = "Geolocation is not supported by this browser.";
-        Toastify({
-          text: "Geolocation is not supported by your browser.",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
+        locationStatusText.textContent = "Geolocation is not supported by your browser.";
+        showToast("Geolocation not supported by browser.", "#ef4444");
         return;
       }
 
-      locationStatus.textContent = "Detecting GPS coordinates...";
+      locationStatusText.textContent = "Detecting high-precision GPS coordinates...";
 
       navigator.geolocation.getCurrentPosition(async (p) => {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
         const accuracy = Math.round(p.coords.accuracy);
 
-        locationStatus.textContent = "Fetching readable address...";
+        const distance = calculateDistanceMeters(lat, lng, OFFICE_CONFIG.lat, OFFICE_CONFIG.lng);
+        locationStatusText.textContent = "Fetching readable address...";
 
         const addressText = await reverseGeocode(lat, lng);
-        gps = { lat, lng, accuracy, address: addressText };
+        gps = { lat, lng, accuracy, address: addressText, distanceMeters: distance };
 
-        locationStatus.innerHTML = `<b>Address:</b> ${escapeHtml(addressText)}<br><small style="color:#64748b">Lat: ${lat.toFixed(4)} | Lng: ${lng.toFixed(4)} | Accuracy: ±${accuracy}m</small>`;
+        locationStatusText.innerHTML = `<b>Address:</b> ${escapeHtml(addressText)}<br><small style="color:#64748b;">Detected: ${lat.toFixed(5)}, ${lng.toFixed(5)} | GPS Accuracy: ±${accuracy}m</small>`;
 
-        Toastify({
-          text: "Location detected successfully!",
-          duration: 2500,
-          style: { background: "#10b981" }
-        }).showToast();
+        updateGeofencePillUI(distance, accuracy);
+
+        if (isHomeModeActive) {
+          showToast("Home Location detected successfully! ✅", "#10b981");
+        }
       }, (error) => {
         let msg = "Location permission denied or unavailable.";
-        if (error.code === 1) msg = "Location permission was denied. Please allow location access in your browser.";
-        else if (error.code === 2) msg = "Position unavailable. Please enable device GPS/Location services.";
-        else if (error.code === 3) msg = "Location detection timed out. Please try again.";
+        if (error.code === 1) msg = "Location permission was denied. Please allow location in browser settings.";
+        else if (error.code === 2) msg = "GPS unavailable. Please enable device location.";
+        else if (error.code === 3) msg = "Location request timed out. Please try again.";
 
-        locationStatus.textContent = msg;
-        Toastify({
-          text: msg,
-          duration: 3500,
-          style: { background: "#ef4444" }
-        }).showToast();
-      }, { enableHighAccuracy: true, timeout: 10000 });
+        locationStatusText.textContent = msg;
+        const geofencePillWrap = document.getElementById("geofencePillWrap");
+        if (geofencePillWrap) geofencePillWrap.innerHTML = `<span class="geofence-pill outside">❌ ${msg}</span>`;
+        showToast(msg, "#ef4444");
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     }
 
-    // --- Records & Submission ---
-    async function fetchRecords() {
-      try {
-        const res = await fetch(`${API_BASE}/api/attendance/all`);
-        const result = await res.json();
-        return Array.isArray(result) ? result : (result.data || []);
-      } catch (err) {
-        console.error('Fetch error:', err);
-        return [];
-      }
-    }
-
+    // --- PUNCH IN SUBMISSION ---
     async function submitAttendance() {
-      let empId = localStorage.getItem('empId');
+      const empId = localStorage.getItem('empId');
       const empName = localStorage.getItem('empName') || 'Employee';
       const message = document.getElementById('message');
+      const btnIn = document.getElementById('btnPunchIn');
 
       if (!empId || empId === 'undefined' || empId === 'null') {
-        Toastify({
-          text: "Session expired or invalid employee ID. Please log in.",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
-        logout();
+        showToast("Session expired. Please log in again.", "#ef4444");
+        logoutSession();
         return;
       }
 
       if (!selfieData) {
-        message.textContent = "Please capture a selfie before submitting.";
-        Toastify({
-          text: "Please capture a selfie photo!",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
+        message.textContent = "Please capture a selfie photo before Punch In.";
+        showToast("Selfie photo required! Take selfie first.", "#ef4444");
         return;
       }
 
       if (!gps) {
-        message.textContent = "Please click 'Get Current Location' before submitting.";
-        Toastify({
-          text: "Please capture your GPS location!",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
+        message.textContent = "Please click 'Detect Current GPS Location' before Punch In.";
+        showToast("GPS location required! Click Detect GPS Location.", "#ef4444");
         return;
       }
 
-      message.textContent = "Submitting punch in attendance...";
+      // Pre-check Geofence on Frontend (only if NOT in Home mode)
+      const atOfficeIn = isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address);
+      if (!isHomeModeActive && !atOfficeIn) {
+        const dist = gps.distanceMeters;
+        message.textContent = `Punch In Blocked: You are ${dist}m away from the office campus.`;
+        showToast(`You are outside office boundary! (${dist}m away, max ${OFFICE_CONFIG.radiusMeters}m allowed)`, "#ef4444", 4500);
+        return;
+      }
+
+      const allowedAccIn = (isHomeModeActive || atOfficeIn) ? Math.max(OFFICE_CONFIG.maxAccuracyMeters, 450) : OFFICE_CONFIG.maxAccuracyMeters;
+      if (gps.accuracy > allowedAccIn) {
+        message.textContent = `Punch In Blocked: GPS accuracy low (±${gps.accuracy}m).`;
+        showToast(`GPS accuracy is low (±${gps.accuracy}m). Please refresh GPS!`, "#f59e0b", 4000);
+        return;
+      }
+
+      const isLateHalfDay = isCurrentTimeAfterHalfDayCutoff();
+
+      btnIn.disabled = true;
+      message.textContent = "Submitting Punch In attendance...";
 
       try {
         const response = await fetch(`${API_BASE}/api/attendance/submit`, {
@@ -1156,76 +2644,261 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             empId,
-            empName: empName || 'Employee',
-            status: 'Present',
+            empName,
+            isHomeLocation: isHomeModeActive,
+            workMode: isHomeModeActive ? 'Home' : 'Office',
             location: {
-              address: gps.address || 'N/A',
+              address: gps.address || (isHomeModeActive ? 'Home Location' : 'Office Location'),
               lat: gps.lat,
               lng: gps.lng,
-              accuracy: gps.accuracy
+              accuracy: gps.accuracy,
+              isHome: isHomeModeActive
             },
             selfie: selfieData
           })
         });
 
         const result = await response.json();
+        btnIn.disabled = false;
 
         if (response.ok && result.success) {
           const empDisplayName = result.empName || empName;
           if (result.empId && result.empId !== 'undefined') localStorage.setItem('empId', result.empId);
-          if (result.empName) localStorage.setItem('empName', result.empName);
 
-          message.textContent = `✓ Punch In recorded successfully at ${result.loginTime || result.punchTime}!`;
-          
-          Toastify({
-            text: `✅ Punch In marked for ${empDisplayName} (${result.loginTime || result.punchTime})!`,
-            duration: 3500,
-            gravity: "top",
-            position: "right",
-            style: { background: "linear-gradient(to right, #00b09b, #96c93d)" },
-          }).showToast();
+          if (result.isHalfDay || isLateHalfDay) {
+            const notifMsg = result.notificationMessage || "Aap 10:05 AM ke baad punch kar rahe hain. Aapka Half Day lag gaya hai!";
+            showHalfDayNotificationModal(notifMsg);
+            message.textContent = `⚠️ Punch In recorded as HALF DAY at ${result.loginTime || result.punchTime} (After 10:05 AM cutoff)!`;
+            showToast(`⚠️ ` + notifMsg, "#ea580c", 6000);
+          } else {
+            message.textContent = `✓ Punch In recorded as PRESENT at ${result.loginTime || result.punchTime}!`;
+            showToast(`✅ Punch In Marked (Present) at ${result.loginTime}!`, "#10b981", 4000);
+          }
 
-          // Reset selfie preview
-          selfieData = "";
-          document.getElementById('preview').style.display = "none";
-          document.getElementById('previewLabel').style.display = "none";
-
-          // Refresh live attendance records table & counters
-          render();
+          loadRecordsFromBackend();
         } else {
-          message.textContent = "Failed: " + (result.message || "Server Error");
-          Toastify({
-            text: "Failed: " + (result.message || "Server Error"),
-            duration: 3500,
-            style: { background: "#ef4444" },
-          }).showToast();
+          message.textContent = result.message || "Punch In failed.";
+          showToast(result.message || "Failed to mark attendance.", "#ef4444", 4500);
         }
       } catch (err) {
-        message.textContent = "Error connecting to server.";
-        Toastify({
-          text: "Error connecting to server.",
-          duration: 3000,
-          style: { background: "#ef4444" },
-        }).showToast();
+        btnIn.disabled = false;
+        message.textContent = "Server connection error during Punch In.";
+        console.error("submitAttendance network error:", err);
+        showNetworkIssueNotification(
+          "Punch In Failed (Network Error)",
+          "Attendance submit karne ke dauran internet disconnect ya slow ho gaya. Kripya connection check karke Retry karein.",
+          () => submitAttendance()
+        );
       }
     }
 
-    async function punchOutAttendance() {
-      let empId = localStorage.getItem('empId');
-      const empName = localStorage.getItem('empName') || 'Employee';
-      const message = document.getElementById('message');
+    // --- WORK REPORT HELPERS ---
+    function toggleReportForm(forceState = null) {
+      const box = document.getElementById('workReportSection');
+      const btn = document.getElementById('btnReportToggle');
+      const sub = document.getElementById('reportToggleSubtitle');
+      if (!box || !btn) return;
 
-      if (!empId || empId === 'undefined' || empId === 'null') {
-        Toastify({
-          text: "Please login first to punch out.",
-          duration: 3000,
-          style: { background: "#ef4444" }
-        }).showToast();
-        logout();
+      const isCurrentlyOpen = box.style.display !== 'none' && box.style.display !== '';
+      const shouldOpen = forceState !== null ? forceState : !isCurrentlyOpen;
+
+      if (shouldOpen) {
+        box.style.display = 'block';
+        btn.classList.add('is-open');
+        if (sub) sub.textContent = 'Report form is open • Fill and save your report below';
+        const input = document.getElementById('dailyWorkReportInput');
+        if (forceState !== null && input) {
+          setTimeout(() => input.focus(), 150);
+        }
+      } else {
+        box.style.display = 'none';
+        btn.classList.remove('is-open');
+        if (sub) sub.textContent = 'Click to open & fill • Mandatory for Logout / Punch Out';
+      }
+    }
+
+    function openReportForm() {
+      toggleReportForm(true);
+    }
+
+    function handleReportInput() {
+      const input = document.getElementById('dailyWorkReportInput');
+      const box = document.getElementById('workReportSection');
+      const countEl = document.getElementById('reportCharCount');
+      const statusEl = document.getElementById('reportStatusIndicator');
+      const badge = document.getElementById('reportPillBadge');
+      if (!input) return;
+
+      const len = input.value.trim().length;
+      if (countEl) countEl.textContent = `${len} characters (Min 5 req.)`;
+
+      if (len >= 5) {
+        if (box) {
+          box.classList.add('active-typing');
+          box.classList.remove('report-error');
+        }
+        if (statusEl) {
+          statusEl.className = 'report-status-ready';
+          statusEl.textContent = '✓ Work Report Ready';
+        }
+        if (badge) {
+          badge.className = 'report-pill-badge ready';
+          badge.textContent = '✓ Report Ready';
+        }
+      } else {
+        if (box) box.classList.remove('active-typing');
+        if (statusEl) {
+          statusEl.className = 'report-status-pending';
+          statusEl.textContent = '⏳ Work Report Pending';
+        }
+        if (badge) {
+          badge.className = 'report-pill-badge pending';
+          badge.textContent = '⏳ Report Pending';
+        }
+      }
+    }
+
+    async function submitWorkReportOnly() {
+      const empId = localStorage.getItem('empId');
+      const empName = localStorage.getItem('empName') || 'Employee';
+      const reportInput = document.getElementById('dailyWorkReportInput');
+      const catSelect = document.getElementById('workCategorySelect');
+      const changesInput = document.getElementById('developmentChangesInput');
+
+      const workReport = (reportInput ? reportInput.value : '').trim();
+      const workCategory = catSelect ? catSelect.value : 'Development & Code Changes';
+      const developmentChanges = (changesInput ? changesInput.value : '').trim();
+
+      if (!workReport || workReport.length < 5) {
+        showToast("⚠️ Daily Work Report must have at least 5 characters.", "#ef4444");
+        if (reportInput) reportInput.focus();
         return;
       }
 
-      message.textContent = "Recording punch out...";
+      try {
+        const res = await fetch(`${API_BASE}/api/attendance/work-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empId, empName, workReport, workCategory, developmentChanges })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast("✓ Daily Work & Development Report saved successfully!", "#10b981", 4000);
+          const badge = document.getElementById('reportPillBadge');
+          if (badge) {
+            badge.className = 'report-pill-badge ready';
+            badge.textContent = '✓ Report Saved';
+          }
+          loadRecordsFromBackend();
+        } else {
+          showToast(data.message || "Failed to save report.", "#ef4444");
+        }
+      } catch (err) {
+        console.error("submitWorkReportOnly network error:", err);
+        showNetworkIssueNotification(
+          "Report Save Failed (Network Error)",
+          "Daily Work Report server par save nahi ho payi. Kripya apna internet connection check karein.",
+          () => submitWorkReportOnly()
+        );
+      }
+    }
+
+    function viewDailyReport(empName, date, reportText, submittedTime, category, devChanges) {
+      const modal = document.getElementById('reportViewModal');
+      const nameEl = document.getElementById('reportModalEmpName');
+      const metaEl = document.getElementById('reportModalMeta');
+      const catEl = document.getElementById('reportModalCategory');
+      const changesWrap = document.getElementById('reportModalChangesWrap');
+      const changesEl = document.getElementById('reportModalChanges');
+      const textEl = document.getElementById('reportModalText');
+
+      if (nameEl) nameEl.textContent = `${empName}'s Work & Development Report`;
+      if (metaEl) metaEl.textContent = `Date: ${date} ${submittedTime ? '| Submitted at: ' + submittedTime : ''}`;
+      if (catEl) catEl.textContent = category || 'Development';
+
+      if (devChanges && devChanges.trim().length > 0) {
+        if (changesWrap) changesWrap.style.display = 'block';
+        if (changesEl) changesEl.textContent = devChanges;
+      } else {
+        if (changesWrap) changesWrap.style.display = 'none';
+      }
+
+      if (textEl) textEl.textContent = reportText;
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeReportModal(event) {
+      if (event && event.target && event.target !== event.currentTarget && !event.target.classList.contains('report-modal-close')) {
+        return;
+      }
+      const modal = document.getElementById('reportViewModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // --- PUNCH OUT SUBMISSION ---
+    async function punchOutAttendance() {
+      const empId = localStorage.getItem('empId');
+      const empName = localStorage.getItem('empName') || 'Employee';
+      const message = document.getElementById('message');
+      const btnOut = document.getElementById('btnPunchOut');
+      const reportBox = document.getElementById('workReportSection');
+      const reportInput = document.getElementById('dailyWorkReportInput');
+      const catSelect = document.getElementById('workCategorySelect');
+      const changesInput = document.getElementById('developmentChangesInput');
+
+      const workReport = (reportInput ? reportInput.value : '').trim();
+      const workCategory = catSelect ? catSelect.value : 'Development & Code Changes';
+      const developmentChanges = (changesInput ? changesInput.value : '').trim();
+
+      if (!empId || empId === 'undefined' || empId === 'null') {
+        showToast("Please log in first to punch out.", "#ef4444");
+        logoutSession();
+        return;
+      }
+
+      // 1. Mandatory Daily Work & Development Report Validation (BYPASSED WHEN LUNCH IS ACTIVE)
+      if (!isLunchActive && (!workReport || workReport.length < 5)) {
+        openReportForm();
+        message.textContent = "❌ Punch Out Blocked: Please enter your Daily Work & Development Report before Punch Out.";
+        showToast("⚠️ Daily Work Report required! Enter tasks/development changes before Punch Out.", "#ef4444", 4500);
+        if (reportBox) {
+          reportBox.classList.add('report-error');
+          setTimeout(() => reportBox.classList.remove('report-error'), 3000);
+          reportBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (reportInput) {
+          reportInput.focus();
+        }
+        return;
+      }
+
+      // 2. Selfie check (BYPASSED WHEN LUNCH IS ACTIVE)
+      if (!isLunchActive && !selfieData) {
+        message.textContent = "Selfie photo is required for Punch Out. Please capture a selfie.";
+        showToast("Punch Out selfie required! Capture selfie first.", "#ef4444");
+        return;
+      }
+
+      // 3. GPS check (if not available, fallback for lunch)
+      if (!gps && !isLunchActive) {
+        message.textContent = "Please detect your GPS location before Punch Out.";
+        showToast("GPS location required for Punch Out!", "#ef4444");
+        return;
+      }
+
+      // 4. Geofence check only if NOT in Home mode and NOT in Lunch mode
+      const atOfficeOut = gps ? isWithinOffice(gps.lat, gps.lng, gps.distanceMeters, gps.address) : true;
+      if (!isHomeModeActive && !isLunchActive && !atOfficeOut && gps) {
+        const dist = gps.distanceMeters;
+        message.textContent = `Punch Out Blocked: You are ${dist}m away from the office campus.`;
+        showToast(`You are outside office boundary! (${dist}m away, max ${OFFICE_CONFIG.radiusMeters}m allowed)`, "#ef4444", 4500);
+        return;
+      }
+
+      btnOut.disabled = true;
+      message.textContent = isLunchActive 
+        ? "Recording Lunch break (Selfie & report bypassed)..." 
+        : "Recording Punch Out with selfie and Development Report verification...";
 
       try {
         const response = await fetch(`${API_BASE}/api/attendance/punch-out`, {
@@ -1234,129 +2907,266 @@
           body: JSON.stringify({
             empId,
             empName,
-            location: gps || { address: 'Office / On Duty', lat: 0, lng: 0 }
+            isHomeLocation: isHomeModeActive,
+            workMode: isHomeModeActive ? 'Home' : 'Office',
+            isLunch: isLunchActive,
+            breakType: isLunchActive ? 'Lunch' : 'Normal',
+            lunchMode: isLunchActive,
+            workCategory: isLunchActive ? 'Lunch Break' : workCategory,
+            workReport: workReport || (isLunchActive ? 'Lunch Break taken' : ''),
+            developmentChanges: developmentChanges,
+            selfie: selfieData || '',
+            location: {
+              address: gps?.address || (isHomeModeActive ? 'Home Location' : 'Office Location'),
+              lat: gps?.lat || OFFICE_CONFIG.lat,
+              lng: gps?.lng || OFFICE_CONFIG.lng,
+              accuracy: gps?.accuracy || 15,
+              isHome: isHomeModeActive
+            }
           })
         });
 
         const result = await response.json();
+        btnOut.disabled = false;
 
         if (response.ok && result.success) {
-          message.textContent = `✓ Punch out recorded at ${result.logoutTime}!`;
-          Toastify({
-            text: `🚪 Punch Out Recorded: ${result.logoutTime}`,
-            duration: 4000,
-            style: { background: "linear-gradient(to right, #ea580c, #dc2626)" }
-          }).showToast();
-          render();
-        } else {
-          message.textContent = "Punch out: " + (result.message || "Server error");
-          Toastify({
-            text: result.message || "Failed to record punch out.",
-            duration: 3500,
-            style: { background: "#ef4444" }
-          }).showToast();
-        }
-      } catch (err) {
-        message.textContent = "Error connecting to server.";
-        Toastify({
-          text: "Network error during punch out.",
-          duration: 3000,
-          style: { background: "#ef4444" },
-        }).showToast();
-      }
-    }
-
-    function formatDisplayTime(val, fallbackDate) {
-      if (!val && !fallbackDate) return null;
-      const str = String(val || '').trim();
-      // If already a clean short time string like "01:34:00 PM"
-      if (/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(str)) {
-        return str;
-      }
-      try {
-        const d = new Date(val || fallbackDate);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleTimeString('en-IN', {
-            timeZone: 'Asia/Kolkata',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-          });
-        }
-      } catch (e) {}
-      return str || null;
-    }
-
-    async function render() {
-      const recordsEl = document.getElementById("records");
-      const searchEl = document.getElementById("search");
-      const filterEl = document.getElementById("filter");
-      const totalEl = document.getElementById("total");
-      const presentEl = document.getElementById("present");
-      const lateEl = document.getElementById("late");
-      const percentEl = document.getElementById("percent");
-
-      const all = await fetchRecords();
-      const q = searchEl.value.toLowerCase();
-      const today = new Date().toDateString();
-
-      const filtered = all.filter(x => 
-        (!q || ((x.empName || '') + " " + (x.empId || '')).toLowerCase().includes(q)) &&
-        (filterEl.value === "all" || new Date(x.createdAt || Date.now()).toDateString() === today)
-      );
-
-      if (filtered.length > 0) {
-        recordsEl.innerHTML = filtered.map(x => {
-          const d = new Date(x.createdAt || x.punchIn || Date.now());
-          const hasLocation = x.location && x.location.lat && x.location.lng;
-          const mapLink = hasLocation 
-            ? `<a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}">View Map</a>` 
-            : '';
-          const addressText = escapeHtml(x.location?.address || 'N/A');
-          let imgSrc = x.imageUrl || x.selfie || '';
-          if (imgSrc && typeof imgSrc === 'string' && imgSrc.startsWith('http://') && window.location.protocol === 'https:') {
-            imgSrc = imgSrc.replace(/^http:\/\//i, 'https://');
+          if (isLunchActive || result.isLunch) {
+            message.textContent = `🍱 Lunch break marked at ${result.logoutTime || result.punchOutTime}! (Report aur selfie require nahi thi)`;
+            showToast(`🍱 Lunch Break Recorded at ${result.logoutTime || result.punchOutTime}! (Report & selfie bypassed)`, "#f59e0b", 4500);
+          } else {
+            message.textContent = `✓ Punch Out and Daily Development Report recorded successfully at ${result.logoutTime || result.punchOutTime}!`;
+            showToast(`🚪 Punch Out & Development Report Saved at ${result.logoutTime || result.punchOutTime}!`, "#16a34a", 4500);
           }
 
-          const cleanLogin = formatDisplayTime(x.loginTime || x.punchTime, x.punchIn || x.createdAt) || d.toLocaleTimeString();
-          const cleanLogout = formatDisplayTime(x.logoutTime || x.punchOut, x.punchOut);
+          if (reportInput) {
+            reportInput.value = '';
+            handleReportInput();
+          }
+          if (changesInput) {
+            changesInput.value = '';
+          }
 
-          const logoutStr = cleanLogout 
-            ? `<span style="color:#059669; font-weight:700;">${escapeHtml(cleanLogout)}</span>` 
-            : `<span style="color:#94a3b8; font-style:italic;">-- (Active)</span>`;
+          loadRecordsFromBackend();
+        } else {
+          message.textContent = result.message || "Punch Out failed.";
+          showToast(result.message || "Failed to record punch out.", "#ef4444", 4500);
+        }
+      } catch (err) {
+        btnOut.disabled = false;
+        message.textContent = "Server error during Punch Out.";
+        console.error("punchOutAttendance network error:", err);
+        showNetworkIssueNotification(
+          "Punch Out Failed (Network Error)",
+          "Punch Out request server tak nahi pahuch saki. Kripya apna internet connection check karke Retry karein.",
+          () => punchOutAttendance()
+        );
+      }
+    }
 
+    // --- FETCH ATTENDANCE DATA (FAST & DEFAULT TODAY ONLY) ---
+    async function loadRecordsFromBackend() {
+      const recordsEl = document.getElementById("records");
+      const filterSelect = document.getElementById("filterSelect");
+      const currentFilter = filterSelect.value; // 'today', 'all', or 'super-admin'
+
+      recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 22px; color:#64748b;">⚡ Loading fast attendance data...</td></tr>';
+
+      try {
+        let url = `${API_BASE}/api/attendance/today`;
+        if (currentFilter === 'all') {
+          url = `${API_BASE}/api/attendance/all?filter=all`;
+        } else if (currentFilter === 'super-admin') {
+          url = `${API_BASE}/api/attendance/super-admin/reports`;
+        }
+
+        const res = await fetch(url);
+        const result = await res.json();
+        rawFetchedRecords = Array.isArray(result) ? result : (result.data || []);
+
+        filterLocalRecords();
+        updateEmployeeLiveStatus();
+      } catch (err) {
+        console.error('Fetch error:', err);
+        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; color:#ef4444;">Failed to load attendance records (Network Error). <button type="button" onclick="loadRecordsFromBackend()" style="margin-left:8px; background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:12px; cursor:pointer;">Retry</button></td></tr>';
+        if (!navigator.onLine) {
+          showNetworkIssueNotification(
+            "Offline Mode Active",
+            "Aapka device offline hai. Data refresh karne ke liye internet connect karein.",
+            () => loadRecordsFromBackend()
+          );
+        }
+      }
+    }
+
+    function filterLocalRecords() {
+      const recordsEl = document.getElementById("records");
+      const searchEl = document.getElementById("search");
+      const q = (searchEl.value || '').trim().toLowerCase();
+
+      const filtered = rawFetchedRecords.filter(x => {
+        if (!q) return true;
+        const text = `${x.empName || ''} ${x.empId || ''} ${x.status || ''} ${x.workReport || ''} ${x.developmentChanges || ''} ${x.workCategory || ''}`.toLowerCase();
+        return text.includes(q);
+      });
+
+      if (filtered.length === 0) {
+        recordsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 26px; color:#64748b;">No attendance or development records found.</td></tr>';
+      } else {
+        recordsEl.innerHTML = filtered.map(x => {
           const displayId = (x.empId && x.empId !== 'undefined' && x.empId !== 'null') ? x.empId : '-';
+          const isHalfDay = x.isHalfDay || (x.status === 'Half Day');
+          const statusBadge = isHalfDay 
+            ? `<span class="badge badge-halfday">⚠️ Half Day</span>` 
+            : `<span class="badge badge-present">✓ Present</span>`;
 
-          const formattedDate = !isNaN(d.getTime()) 
-            ? d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' })
-            : (x.punchDate || '-');
+          const cleanInTime = x.loginTime || x.punchTime || x.punchInTime || '--';
+          const cleanOutTime = x.logoutTime || x.punchOutTime;
+          const outDisplay = cleanOutTime 
+            ? `<b style="color:#ea580c;">${escapeHtml(cleanOutTime)}</b>` 
+            : `<span class="badge-active">Active (Not Punched Out)</span>`;
+
+          // Lunch status & duration display
+          const lunchDisplay = x.isOnLunch 
+            ? `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🟢 On Lunch (${x.lunchStartTime || 'Now'})</span>`
+            : (x.lunchDuration > 0 || (x.lunchBreaks && x.lunchBreaks.length > 0)
+                ? `<span style="color:#b45309; font-weight:700; font-size:12px;">🍱 ${x.lunchDurationFormatted || (x.lunchDuration ? x.lunchDuration + ' mins' : '')}</span>`
+                : `<span style="color:#94a3b8;">-</span>`);
+
+          const dist = x.location?.distanceMeters;
+          const distStr = (dist !== undefined && dist !== null && !isNaN(dist))
+            ? (dist <= 50 ? `<span style="color:#16a34a; font-weight:700;">🟢 ${dist}m (Inside)</span>` : `<span style="color:#dc2626; font-weight:700;">🔴 ${dist}m</span>`)
+            : `<span style="color:#64748b;">Verified</span>`;
+
+          const inImgUrl = x.imageUrl;
+          const outImgUrl = x.punchOutImageUrl;
+
+          let selfiesHtml = '';
+          if (inImgUrl) {
+            selfiesHtml += `
+              <div>
+                <span class="selfie-tag">In Selfie</span>
+                <img src="${inImgUrl}" class="avatar-preview" onclick="openLightbox('${inImgUrl}')" alt="In selfie">
+              </div>`;
+          }
+          if (outImgUrl) {
+            selfiesHtml += `
+              <div>
+                <span class="selfie-tag">Out Selfie</span>
+                <img src="${outImgUrl}" class="avatar-preview" onclick="openLightbox('${outImgUrl}')" alt="Out selfie">
+              </div>`;
+          }
+          if (!selfiesHtml) {
+            selfiesHtml = '<span style="color:#94a3b8;">-</span>';
+          }
+
+          const mapLink = (x.location?.lat && x.location?.lng)
+            ? `<br><a target="_blank" href="https://www.google.com/maps?q=${x.location.lat},${x.location.lng}" style="color:#2563eb; font-size:11px; text-decoration:none;">📍 Map View</a>`
+            : '';
+
+          // Work & Development Report Display Button or Badge
+          const reportContent = (x.workReport || '').trim();
+          const devChanges = (x.developmentChanges || '').trim();
+          const workCat = x.workCategory || 'Development & Code Changes';
+
+          let reportCellHtml = '';
+          if (reportContent) {
+            const safeName = escapeHtml(x.empName || 'Employee');
+            const safeDate = escapeHtml(x.punchDate || '-');
+            const safeTime = escapeHtml(x.reportSubmittedAt || x.logoutTime || x.punchOutTime || '');
+            const safeCat = escapeHtml(workCat);
+            const safeChanges = escapeHtml(devChanges);
+
+            reportCellHtml = `
+              <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:10px;">${safeCat}</span>
+                ${devChanges ? `<div style="font-size:11px; color:#15803d; font-weight:700; line-height:1.2;">🚀 ${escapeHtml(devChanges.slice(0, 32))}${devChanges.length > 32 ? '...' : ''}</div>` : ''}
+                <button type="button" class="btn-view-report" onclick='viewDailyReport(${JSON.stringify(safeName)}, ${JSON.stringify(safeDate)}, ${JSON.stringify(reportContent)}, ${JSON.stringify(safeTime)}, ${JSON.stringify(safeCat)}, ${JSON.stringify(safeChanges)})'>
+                  📄 View Details
+                </button>
+              </div>`;
+          } else {
+            reportCellHtml = `<span style="font-size:11px; color:#94a3b8; font-style:italic;">Not submitted</span>`;
+          }
 
           return `<tr>
-            <td><b>${escapeHtml(x.empName || 'Employee')}</b><br><small style="color:#64748b;">${escapeHtml(displayId)}</small></td>
-            <td>${formattedDate}</td>
-            <td><b style="color:#2563eb;">${escapeHtml(cleanLogin)}</b></td>
-            <td>${logoutStr}</td>
-            <td><span class="badge">${escapeHtml(x.status || 'Present')}</span></td>
             <td>
-              <small style="display:block; max-width: 200px; font-size: 11px; margin-bottom: 2px;">${addressText}</small>
+              <strong style="font-size:13px; color:#0f172a;">${escapeHtml(x.empName || 'Employee')}</strong>
+              <div style="font-size:11px; color:#64748b; font-weight:600;">${escapeHtml(displayId)}</div>
+            </td>
+            <td style="white-space:nowrap; color:#475569;">${escapeHtml(x.punchDate || '-')}</td>
+            <td><b style="color:#2563eb;">${escapeHtml(cleanInTime)}</b></td>
+            <td>${lunchDisplay}</td>
+            <td>${outDisplay}</td>
+            <td>${reportCellHtml}</td>
+            <td>${statusBadge}</td>
+            <td>
+              ${distStr}
               ${mapLink}
             </td>
             <td>
-              ${imgSrc ? `<img src="${imgSrc}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2244%22 height=%2244%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2210%22 fill=%22%23e2e8f0%22/><circle cx=%2250%22 cy=%2240%22 r=%2220%22 fill=%22%2394a3b8%22/><path d=%22M20 85 C20 68 35 65 50 65 C65 65 80 68 80 85 Z%22 fill=%22%2394a3b8%22/></svg>';" style="width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">` : '-'}
+              <div class="selfie-cell-flex">${selfiesHtml}</div>
             </td>
           </tr>`;
-        }).join("");
-      } else {
-        recordsEl.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color:#64748b;">No attendance records found.</td></tr>';
+        }).join('');
       }
 
-      const todayRows = all.filter(x => new Date(x.createdAt || Date.now()).toDateString() === today);
-      const uniqueEmployees = new Set(all.map(x => x.empId)).size;
-      totalEl.textContent = uniqueEmployees;
-      presentEl.textContent = todayRows.length;
-      lateEl.textContent = 0;
-      percentEl.textContent = (todayRows.length ? Math.min(100, Math.round(todayRows.length / Math.max(1, uniqueEmployees) * 100)) : 0) + "%";
+      // Update Top Stats Counters
+      const totalUnique = new Set(rawFetchedRecords.map(x => x.empId)).size;
+      const halfDayCount = rawFetchedRecords.filter(x => x.isHalfDay || x.status === 'Half Day').length;
+      const presentCount = rawFetchedRecords.length;
+
+      document.getElementById("total").textContent = totalUnique;
+      document.getElementById("present").textContent = presentCount;
+      document.getElementById("late").textContent = halfDayCount;
+      document.getElementById("percent").textContent = presentCount ? "100%" : "0%";
+    }
+
+    // Show live punch state for the logged-in employee on their card
+    function updateEmployeeLiveStatus() {
+      const empId = localStorage.getItem('empId');
+      const badgeEl = document.getElementById("empTodayStatusBadge");
+      if (!badgeEl || !empId) return;
+
+      const myRecord = rawFetchedRecords.find(x => 
+        String(x.empId).toLowerCase() === String(empId).toLowerCase()
+      );
+
+      if (myRecord) {
+        const inTime = myRecord.loginTime || myRecord.punchTime;
+        const outTime = myRecord.logoutTime || myRecord.punchOutTime;
+        const isHalfDay = myRecord.isHalfDay || (myRecord.status === 'Half Day');
+
+        if (myRecord.isOnLunch) {
+          badgeEl.innerHTML = `<span style="color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:700;">🍱 On Lunch (${myRecord.lunchStartTime || 'Now'})</span>`;
+          updateLunchUI(true, myRecord.lunchStartTime);
+        } else if (outTime) {
+          badgeEl.innerHTML = `<span style="color:#ea580c; background:#fff7ed; border:1px solid #fed7aa; padding:4px 8px; border-radius:6px; font-weight:700;">🚪 Punched Out (${outTime})</span>`;
+          updateLunchUI(false);
+        } else {
+          badgeEl.innerHTML = isHalfDay
+            ? `<span style="color:#d97706; background:#fffbeb; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:700;">⚠️ In at ${inTime} (Half Day)</span>`
+            : `<span style="color:#15803d; background:#ecfdf5; border:1px solid #a7f3d0; padding:4px 8px; border-radius:6px; font-weight:700;">🟢 In at ${inTime} (Present)</span>`;
+          updateLunchUI(false);
+        }
+      } else {
+        badgeEl.innerHTML = `<span style="color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 8px; border-radius:6px; font-weight:600;">⚪ Not Punched In Today</span>`;
+        updateLunchUI(false);
+      }
+    }
+
+    // Refresh wrapper
+    function render() {
+      loadRecordsFromBackend();
+    }
+
+    // Lightbox modal functions
+    function openLightbox(src) {
+      document.getElementById('lightboxImg').src = src;
+      document.getElementById('lightboxModal').style.display = 'flex';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightboxModal').style.display = 'none';
     }
   </script>
 </body>

@@ -7,6 +7,35 @@ const User = require('../models/User');
 const JWT_SECRET = process.env.JWT_SECRET || 'apna_secret_key_yahan_rakhein';
 const SSO_SHARED_SECRET = process.env.SSO_SHARED_SECRET || 'advmen_sso_shared_secret_2026_key_secure_99';
 const CRM_FRONTEND_URL = (process.env.CRM_FRONTEND_URL || 'https://advmen-crm-frontend.vercel.app').replace(/\/+$/, '');
+const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Kolkata';
+
+// Helper: Check if current login time in Asia/Kolkata is after 10:05 AM (Cutoff for Half Day)
+function checkIsHalfDay(date = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: ATTENDANCE_TIMEZONE,
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    }).formatToParts(date);
+    const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+    return (h > 10) || (h === 10 && m > 5);
+  } catch (e) {
+    try {
+      const timeStr = date.toLocaleTimeString('en-US', {
+        timeZone: ATTENDANCE_TIMEZONE,
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const [h, m] = timeStr.split(':').map(Number);
+      return (h > 10) || (h === 10 && m > 5);
+    } catch (err) {
+      return false;
+    }
+  }
+}
 
 // Helper: Determine user role and corresponding dashboard target route in Sales CRM
 function determineUserRoleAndTarget(user, empInput) {
@@ -72,7 +101,13 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
-    const existingUser = await User.findOne({ email: email.trim().toLowerCase() });
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({
+      $or: [
+        { email: cleanEmail },
+        { normalizedEmail: cleanEmail }
+      ]
+    });
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Email is already registered!" });
     }
@@ -84,7 +119,14 @@ router.post('/signup', async (req, res) => {
     const count = await User.countDocuments();
     const empId = `EMP${String(101 + count).padStart(3, '0')}`;
 
-    const newUser = new User({ empId, name: name.trim(), email: email.trim().toLowerCase(), password: hashedPassword });
+    const newUser = new User({ 
+      empId, 
+      name: name.trim(), 
+      email: cleanEmail,
+      normalizedEmail: cleanEmail,
+      organizationId: 'org_advmen_platform',
+      password: hashedPassword 
+    });
     await newUser.save();
 
     const token = jwt.sign({ id: newUser._id, empId: newUser.empId }, JWT_SECRET, { expiresIn: '1d' });
@@ -100,6 +142,36 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     console.error("Signup Error:", err);
+    if (err.code === 11000) {
+      // Check if it was empId collision, increment and retry once
+      try {
+        const cleanEmail = (req.body.email || '').trim().toLowerCase();
+        const altId = `EMP${Date.now().toString().slice(-4)}`;
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(req.body.password, salt);
+        const retryUser = new User({
+          empId: altId,
+          name: (req.body.name || '').trim(),
+          email: cleanEmail,
+          normalizedEmail: cleanEmail,
+          organizationId: 'org_advmen_platform',
+          password: hashedPassword
+        });
+        await retryUser.save();
+        const token = jwt.sign({ id: retryUser._id, empId: retryUser.empId }, JWT_SECRET, { expiresIn: '1d' });
+        const ssoData = createSsoPayloadAndToken(retryUser, retryUser.empId, retryUser.name);
+        return res.status(201).json({
+          success: true,
+          token,
+          ssoToken: ssoData.ssoToken,
+          crmDashboardUrl: ssoData.redirectUrl,
+          empId: retryUser.empId,
+          name: retryUser.name
+        });
+      } catch (retryErr) {
+        return res.status(400).json({ success: false, message: "A user with this email or account already exists." });
+      }
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -180,6 +252,11 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user._id, empId: resolvedEmpId }, JWT_SECRET, { expiresIn: '1d' });
     const ssoData = createSsoPayloadAndToken(user, resolvedEmpId, user.name);
 
+    const isAfter1005 = checkIsHalfDay(new Date());
+    const notificationMessage = isAfter1005
+      ? 'Aap 10:05 AM ke baad login kar rahe hain. Aapka Half Day lag gaya hai!'
+      : null;
+
     res.json({
       success: true,
       token,
@@ -187,7 +264,10 @@ router.post('/login', async (req, res) => {
       crmDashboardUrl: ssoData.redirectUrl,
       empId: resolvedEmpId,
       name: user.name,
-      email: user.email
+      email: user.email,
+      isHalfDay: isAfter1005,
+      isAfter1005: isAfter1005,
+      notificationMessage: notificationMessage
     });
   } catch (err) {
     console.error("Login Error:", err);

@@ -36,6 +36,34 @@ async function connectToDatabase() {
     const db = await mongoose.connect(MONGO_URI, opts);
     isConnected = db.connections[0].readyState === 1;
     console.log('MongoDB Connected Successfully');
+
+    // Repair any legacy users with null organizationId or normalizedEmail
+    try {
+      const usersCol = mongoose.connection.collection('users');
+      const nullUsers = await usersCol.find({
+        $or: [
+          { organizationId: null },
+          { normalizedEmail: null },
+          { organizationId: { $exists: false } },
+          { normalizedEmail: { $exists: false } }
+        ]
+      }).toArray();
+
+      for (const u of nullUsers) {
+        const fallbackNorm = u.email ? String(u.email).toLowerCase().trim() : `user-${u._id}@advmen.local`;
+        await usersCol.updateOne(
+          { _id: u._id },
+          { 
+            $set: { 
+              organizationId: u.organizationId || 'org_advmen_platform',
+              normalizedEmail: u.normalizedEmail || fallbackNorm
+            } 
+          }
+        );
+      }
+    } catch (repairErr) {
+      // Non-fatal
+    }
   } catch (err) {
     console.error('MongoDB Connection Error:', err.message);
     throw err;
